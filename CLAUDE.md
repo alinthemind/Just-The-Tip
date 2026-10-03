@@ -18,13 +18,13 @@ Dependencies are locked with Bun (`bun.lock`).
 - `npm run lint`: type-check only (`tsc --noEmit`); there is no ESLint
 - There is no test suite.
 
-Copy `.env.example` to `.env` and set `GEMINI_API_KEY`. The app still runs without a working key; see the fallbacks below.
+Copy `.env.example` to `.env` and set `GEMINI_API_KEY` (on Vercel, set it under the project's Environment Variables). The app still runs without a key: Gemini is skipped and the fallbacks below are used.
 
 ## Architecture
 
-**One process, two halves.** `server.ts` is the whole backend: an Express app with the API routes, which also serves the React SPA (through Vite middleware in dev, or from `dist/` in production). The server imports `src/data/tippingCulture.ts` and `src/data/sampleReceipts.ts` directly, so those files are shared by client and server and must stay free of browser-only APIs.
+**One API, two hosts.** The API routes live in `server/routes.ts` (an Express app, exported). `server.ts` is the local/self-hosted server: it mounts that API and serves the React SPA (through Vite middleware in dev, or from `dist/` in production). On Vercel (auto-deployed from GitHub, Vite preset), Vercel serves `dist/` itself and `api/index.ts` serves the same API, with `vercel.json` routing `/api/*` to it; `server.ts` never runs there. Vercel compiles each function file to plain JavaScript without bundling, so imports in `server/routes.ts` and anything it pulls in use `.js` extensions. Vercel also caps request bodies at 4.5 MB, which is why the client shrinks photos before upload (`utils/uploadImage.ts`). The API imports `src/data/tippingCulture.ts` and `src/data/sampleReceipts.ts` directly, so those files are shared by client and server and must stay free of browser-only APIs.
 
-**API routes (`server.ts`):**
+**API routes (`server/routes.ts`):**
 - `POST /api/scan-receipt`: sends the base64 image to Gemini (`gemini-3.8-flash`) with a JSON `responseSchema`, then **recomputes the tip amounts on the server**. The tip basis is always the pre-tax subtotal (excluding tax, health/mandate surcharges, and any service charge already on the bill), never the total.
 - `POST /api/reverse-geocode`: tries Nominatim first (4s timeout), falls back to Gemini, then defaults to US.
 - `GET /api/ip-location`, `GET /api/culture/:countryCode`, `GET /api/countries`.

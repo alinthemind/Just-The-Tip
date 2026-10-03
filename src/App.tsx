@@ -3,6 +3,7 @@ import { ActiveTab, GpsErrorCode, ScannedReceiptData, UserLocation } from './typ
 import { getSavedLocation, requestBrowserGps, saveLocation, setManualLocation, setLocationFromReceipt } from './utils/geolocation';
 import { getTippingRuleForCountry, getServiceTiers, serviceAdvice, SERVICE_TYPES, ServiceType } from './data/tippingCulture';
 import { prefetchOcrModels, runClientOcr } from './utils/ocr';
+import { shrinkForUpload } from './utils/uploadImage';
 import { primeVoices, speakInLanguage } from './utils/speech';
 import { SAMPLE_RECEIPTS, SampleReceipt } from './data/sampleReceipts';
 import { Header } from './components/Header';
@@ -345,7 +346,7 @@ export default function App() {
       let data: any;
       try {
         const body = JSON.stringify({
-          image: base64Image,
+          image: await shrinkForUpload(base64Image),
           latitude: candidateLat,
           longitude: candidateLon,
           countryCode: candidateCountry,
