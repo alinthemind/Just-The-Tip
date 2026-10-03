@@ -10,7 +10,7 @@ import { ManualCalculator } from './components/ManualCalculator';
 import { CultureGuide } from './components/CultureGuide';
 import { LocationPickerModal } from './components/LocationPickerModal';
 import { AlertCircle, CheckCircle2 } from 'lucide-react';
-import { LanguageCode, getTranslation } from './data/translations';
+import { LanguageCode, SUPPORTED_LANGUAGES, getTranslation } from './data/translations';
 
 const HISTORY_STORAGE_KEY = 'globaltip_scans_history';
 const LANGUAGE_STORAGE_KEY = 'globaltip_user_language';
@@ -56,7 +56,7 @@ export default function App() {
   const [currentLang, setCurrentLang] = useState<LanguageCode>(() => {
     try {
       const saved = localStorage.getItem(LANGUAGE_STORAGE_KEY);
-      if (saved && ['en', 'zh-CN', 'zh-TW', 'ja', 'ko'].includes(saved)) {
+      if (saved && SUPPORTED_LANGUAGES.some((l) => l.code === saved)) {
         return saved as LanguageCode;
       }
     } catch {}

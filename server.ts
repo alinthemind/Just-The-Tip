@@ -335,8 +335,15 @@ app.post('/api/reverse-geocode', async (req: Request, res: Response) => {
       if (response.ok) {
         const data = await response.json();
         const address = data.address || {};
-        const countryCode = (address.country_code || '').toUpperCase();
-        const countryName = address.country || '';
+        let countryCode = (address.country_code || '').toUpperCase();
+        let countryName = address.country || '';
+
+        // Nominatim reports Hong Kong/Macau as country "cn"; the SAR is only in ISO3166-2-lvl3 (e.g. "CN-HK")
+        const sarCode = String(address['ISO3166-2-lvl3'] || '').match(/^CN-([A-Z]{2})$/)?.[1];
+        if (sarCode && COUNTRY_TIPPING_DATABASE[sarCode]) {
+          countryCode = sarCode;
+          countryName = COUNTRY_TIPPING_DATABASE[sarCode].countryName;
+        }
         const city =
           address.city ||
           address.town ||
