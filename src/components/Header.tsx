@@ -55,10 +55,10 @@ export const Header: React.FC<HeaderProps> = ({
     <>
       {/* Top bar */}
       <header className="sticky top-0 z-40 bg-grouped/80 dark:bg-black/75 backdrop-blur-xl backdrop-saturate-150 border-b border-black/[0.06] dark:border-white/[0.08] pt-safe transition-colors">
-        <div className="max-w-5xl mx-auto px-4 sm:px-6 h-14 flex items-center gap-2">
+        <div className="max-w-5xl mx-auto px-3 sm:px-6 h-14 flex items-center gap-2">
           <div className="flex items-center gap-2 flex-shrink-0">
-            <MushroomTipLogo size={22} />
-            <h1 className="font-semibold text-[17px] tracking-tight text-zinc-900 dark:text-white whitespace-nowrap hidden xs:block sm:block">
+            <MushroomTipLogo size={36} />
+            <h1 className="font-bold text-[17px] sm:text-[19px] tracking-tight text-zinc-900 dark:text-white whitespace-nowrap hidden min-[370px]:block leading-none">
               Just the <span className="ig-gradient-text">Tip</span>
             </h1>
           </div>
@@ -75,17 +75,19 @@ export const Header: React.FC<HeaderProps> = ({
           <div className="flex-1 sm:hidden" />
 
           {/* Location + actions */}
-          <div className="flex items-center gap-1.5 flex-shrink-0">
+          <div className="flex items-center gap-1 sm:gap-1.5 flex-shrink-0 min-w-0">
             <button
               type="button"
               onClick={onOpenLocationPicker}
               title={t('changeLocation')}
-              className="h-9 inline-flex items-center gap-1.5 pl-1.5 pr-3 rounded-full bg-[#767680]/12 dark:bg-[#767680]/24 hover:bg-[#767680]/20 active:scale-95 transition-all cursor-pointer max-w-[150px] sm:max-w-[200px]"
+              aria-label={`${t('changeLocation')}: ${userLocation.city || userLocation.countryName}`}
+              className="h-9 inline-flex items-center gap-1.5 pl-1.5 pr-2.5 rounded-full bg-[#767680]/12 dark:bg-[#767680]/24 hover:bg-[#767680]/20 active:scale-95 transition-all cursor-pointer max-w-[200px]"
             >
               <span className="w-6 h-6 rounded-full bg-white dark:bg-elevated flex items-center justify-center text-[15px] leading-none flex-shrink-0">
                 {userLocation.flag}
               </span>
-              <span className="text-[14px] font-medium text-zinc-900 dark:text-white truncate">
+              {/* City name only where there's room; narrow phones show the flag and source icon */}
+              <span className="hidden min-[440px]:inline text-[14px] font-medium text-zinc-900 dark:text-white truncate">
                 {userLocation.city || userLocation.countryName}
               </span>
               <SourceIcon className="w-3.5 h-3.5 text-accent flex-shrink-0" />

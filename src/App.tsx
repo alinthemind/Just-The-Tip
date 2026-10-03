@@ -1,7 +1,7 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { ActiveTab, ScannedReceiptData, UserLocation } from './types';
 import { getSavedLocation, requestBrowserGps, saveLocation, setManualLocation, setLocationFromReceipt } from './utils/geolocation';
-import { getTippingRuleForCountry } from './data/tippingCulture';
+import { getTippingRuleForCountry, getServiceTiers, SERVICE_TYPES, ServiceType, TippingCultureRule } from './data/tippingCulture';
 import { runClientOcr } from './utils/ocr';
 import { SAMPLE_RECEIPTS, SampleReceipt } from './data/sampleReceipts';
 import { Header } from './components/Header';
@@ -18,6 +18,14 @@ const LANGUAGE_STORAGE_KEY = 'globaltip_user_language';
 const THEME_STORAGE_KEY = 'globaltip_user_theme';
 
 export type ThemeMode = 'dark' | 'light';
+
+const SERVICE_ADVICE: Record<ServiceType, (rule: TippingCultureRule) => string> = {
+  restaurant: (r) => r.restaurantAdvice,
+  bar: (r) => r.barAdvice,
+  cafe: (r) => r.counterCafeAdvice,
+  taxi: (r) => r.taxiAdvice,
+  beauty: (r) => r.beautyAdvice,
+};
 
 /** Same shape as /api/scan-receipt's response, built from a demo receipt's own data */
 function sampleToScanData(sample: SampleReceipt) {
@@ -116,6 +124,9 @@ export default function App() {
   const [scanStep, setScanStep] = useState<string>('');
   const [scanError, setScanError] = useState<string | null>(null);
   const [currentReceipt, setCurrentReceipt] = useState<ScannedReceiptData | null>(null);
+  // Location callbacks outlive renders, so they read whether a receipt is open from a ref
+  const receiptOpenRef = useRef(false);
+  receiptOpenRef.current = currentReceipt !== null || isScanning;
 
   // Attempt to locate GPS on initial mount and purge any legacy history for strict user privacy
   useEffect(() => {
@@ -143,11 +154,11 @@ export default function App() {
       setActiveTab('scanner');
     }
     try {
-      const loc = await requestBrowserGps((lateLoc) => {
-        // A GPS fix that arrives after the IP fallback still wins, unless a scanned receipt set the location since
-        setUserLocation((prev) => (prev.source === 'receipt' || prev.source === 'photo-gps' ? prev : lateLoc));
+      const loc = await requestBrowserGps((update) => {
+        // Interim IP location, or a GPS fix that arrived late: show it unless a receipt is open
+        if (!receiptOpenRef.current) setUserLocation(update);
       });
-      setUserLocation(loc);
+      if (!receiptOpenRef.current) setUserLocation(loc);
 
       if (manualTrigger) {
         if (loc.error && !loc.city && loc.countryCode === 'US') {
@@ -335,31 +346,40 @@ export default function App() {
       const tipBasisAmount = Number(data.tipBasisAmount) || preTaxSubtotal;
       const total = Number(data.total) || 0;
 
-      // Handle 0% tip cultures (Hong Kong, Taiwan, China, Singapore, or when service charge is included)
+      // Kind of business on the receipt decides which tip range applies
+      const serviceType: ServiceType = SERVICE_TYPES.includes(data.serviceType)
+        ? data.serviceType
+        : clientOcrResult?.serviceType || 'restaurant';
+      const serviceTiers = getServiceTiers(resolvedCountryCode, serviceType);
+      const isTableService = serviceType === 'restaurant' || serviceType === 'bar';
+
+      // Handle 0% tip cultures (Hong Kong, Taiwan, China, Singapore, or when service charge is included).
+      // These are restaurant norms; a taxi or salon in those places follows its own service range.
       const isZeroTipCulture =
-        resolvedCountryCode === 'HK' ||
-        resolvedCountryCode === 'TW' ||
-        resolvedCountryCode === 'CN' ||
-        resolvedCountryCode === 'SG' ||
-        Boolean(data.serviceChargeIncluded);
+        isTableService &&
+        (resolvedCountryCode === 'HK' ||
+          resolvedCountryCode === 'TW' ||
+          resolvedCountryCode === 'CN' ||
+          resolvedCountryCode === 'SG' ||
+          Boolean(data.serviceChargeIncluded));
 
       const poorPercent = isZeroTipCulture
         ? 0
         : typeof data.tippingCulture?.poor?.percent === 'number'
         ? data.tippingCulture.poor.percent
-        : rule.poorPercent;
+        : serviceTiers.poor;
 
       const minPercent = isZeroTipCulture
         ? 0
         : typeof data.tippingCulture?.minimum?.percent === 'number'
         ? data.tippingCulture.minimum.percent
-        : rule.minPercent;
+        : serviceTiers.min;
 
       const avgPercent = isZeroTipCulture
         ? 0
         : typeof data.tippingCulture?.average?.percent === 'number'
         ? data.tippingCulture.average.percent
-        : rule.avgPercent;
+        : serviceTiers.avg;
 
       const highPercent = isZeroTipCulture
         ? resolvedCountryCode === 'HK' || resolvedCountryCode === 'TW'
@@ -367,7 +387,7 @@ export default function App() {
           : 0
         : typeof data.tippingCulture?.high?.percent === 'number'
         ? data.tippingCulture.high.percent
-        : rule.highPercent;
+        : serviceTiers.high;
 
       const poorAmount = Math.round(tipBasisAmount * (poorPercent / 100) * 100) / 100;
       const minAmount = Math.round(tipBasisAmount * (minPercent / 100) * 100) / 100;
@@ -405,7 +425,7 @@ export default function App() {
           label: rule.avgLabel,
           description: isZeroTipCulture
             ? `Standard tip in ${resolvedCity || rule.countryName} is 0% (service charge already on bill).`
-            : rule.restaurantAdvice,
+            : SERVICE_ADVICE[serviceType](rule),
         },
         high: {
           percent: highPercent,
@@ -429,6 +449,7 @@ export default function App() {
         city: resolvedCity,
         state: resolvedState,
         locationSource,
+        serviceType,
         currencyCode: finalCurrencyCode,
         currencySymbol: finalCurrencySymbol,
         preTaxSubtotal,

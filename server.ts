@@ -9,7 +9,7 @@ import https from 'https';
 import { execFileSync } from 'child_process';
 import { fileURLToPath } from 'url';
 import { GoogleGenAI, Type } from '@google/genai';
-import { COUNTRY_TIPPING_DATABASE, DEFAULT_TIPPING_RULE, getTippingRuleForCountry } from './src/data/tippingCulture.ts';
+import { COUNTRY_TIPPING_DATABASE, DEFAULT_TIPPING_RULE, SERVICE_TYPES, ServiceType, getServiceTiers, getTippingRuleForCountry } from './src/data/tippingCulture.ts';
 import { SAMPLE_RECEIPTS } from './src/data/sampleReceipts.ts';
 
 dotenv.config();
@@ -553,7 +553,8 @@ CRITICAL REQUIREMENTS:
    - total: Final amount due printed on receipt.
    - currencyCode: ISO 3-letter currency code (e.g. HKD, USD, EUR, GBP, JPY, CAD, MXN, AUD).
    - currencySymbol: Symbol (e.g. HK$, $, €, £, ¥, CA$).
-4. TIPPING TIERS (Provide 4 distinct tiers strictly based on local culture):
+4. SERVICE TYPE: serviceType is one of "restaurant" (sit-down meals), "bar" (pubs, bars, lounges where drinks dominate), "cafe" (coffee shops, bakeries, counter service), "taxi" (taxis and rides), "beauty" (hair and nail salons, barbers, spas, massage). Tip tiers must fit that service in that country (e.g. US salon or taxi 15-20%, US café counter 0-15%).
+5. TIPPING TIERS (Provide 4 distinct tiers strictly based on local culture and the service type):
    - poor: { percent: number, label: string, description: string } (Baseline tip for sub-par/poor service, e.g. 0% in HK/Europe/Asia, 10% in US/Canada).
    - minimum: { percent: number, label: string, description: string } (Basic acceptable service).
    - average: { percent: number, label: string, description: string } (Standard customary etiquette, e.g. 0% / round up change in Hong Kong because 10% service charge is already added).
@@ -594,6 +595,7 @@ Return strictly valid JSON.`;
               type: Type.OBJECT,
               properties: {
                 merchantName: { type: Type.STRING },
+                serviceType: { type: Type.STRING, enum: [...SERVICE_TYPES] },
                 date: { type: Type.STRING },
                 address: { type: Type.STRING },
                 city: { type: Type.STRING },
@@ -717,6 +719,22 @@ Return strictly valid JSON.`;
 
     if (!parsedData) {
       parsedData = buildFallbackReceiptData(countryCode, cityName, countryName, image, clientOcr);
+    }
+
+    // Service type: Gemini's answer, else the client's keyword detection, else restaurant
+    const serviceType: ServiceType = SERVICE_TYPES.includes(parsedData.serviceType)
+      ? parsedData.serviceType
+      : SERVICE_TYPES.includes(clientOcr?.serviceType)
+      ? clientOcr.serviceType
+      : 'restaurant';
+    parsedData.serviceType = serviceType;
+    // The fallback builds restaurant tiers from the static rules; swap in this service's range
+    if (parsedData.isFallback && serviceType !== 'restaurant' && parsedData.tippingCulture) {
+      const tiers = getServiceTiers(parsedData.detectedCountry?.code, serviceType);
+      parsedData.tippingCulture.poor.percent = tiers.poor;
+      parsedData.tippingCulture.minimum.percent = tiers.min;
+      parsedData.tippingCulture.average.percent = tiers.avg;
+      parsedData.tippingCulture.high.percent = tiers.high;
     }
 
     // Sanitize calculations and amounts

@@ -1,4 +1,4 @@
-import { TippingCultureRule } from '../data/tippingCulture';
+import { TippingCultureRule, ServiceType } from '../data/tippingCulture';
 
 export interface ReceiptItem {
   name: string;
@@ -42,6 +42,7 @@ export interface ScannedReceiptData {
   city?: string;
   state?: string;
   locationSource?: 'receipt' | 'photo-gps' | 'gps' | 'manual';
+  serviceType?: ServiceType;
   currencyCode: string;
   currencySymbol: string;
   preTaxSubtotal: number; // Pure food & beverage pre-tax subtotal (Tip Basis)

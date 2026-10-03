@@ -20,10 +20,15 @@ import {
   Lightbulb,
   CreditCard,
   Store,
+  Wine,
+  Coffee,
+  Car,
+  Sparkles,
 } from 'lucide-react';
 import type { LucideIcon } from 'lucide-react';
 import { LanguageCode, getTranslation } from '../data/translations';
-import { Card, Chip, IconTile, SectionCaption } from './ui';
+import { Card, Chip, IconTile, SectionCaption, Segmented } from './ui';
+import { getServiceTiers, ServiceType } from '../data/tippingCulture';
 import { TipPanel, TierKey } from './TipPanel';
 import { formatMoney, RoundMode } from '../utils/tipMath';
 
@@ -33,6 +38,14 @@ interface TipResultsProps {
   onUpdateReceipt: (updated: ScannedReceiptData) => void;
   currentLang?: LanguageCode;
 }
+
+export const SERVICE_OPTIONS: Array<{ value: ServiceType; icon: LucideIcon; labelKey: string }> = [
+  { value: 'restaurant', icon: Utensils, labelKey: 'restaurants' },
+  { value: 'bar', icon: Wine, labelKey: 'bars' },
+  { value: 'cafe', icon: Coffee, labelKey: 'cafes' },
+  { value: 'taxi', icon: Car, labelKey: 'taxis' },
+  { value: 'beauty', icon: Sparkles, labelKey: 'beauty' },
+];
 
 const SOURCE_ICON: Record<NonNullable<ScannedReceiptData['locationSource']>, LucideIcon> = {
   receipt: Receipt,
@@ -49,6 +62,8 @@ export const TipResults: React.FC<TipResultsProps> = ({
 }) => {
   const t = (key: string) => getTranslation(currentLang, key);
   const { tippingCulture } = receipt;
+  const detectedService: ServiceType = receipt.serviceType || 'restaurant';
+  const [serviceType, setServiceType] = useState<ServiceType>(detectedService);
   const [selectedTier, setSelectedTier] = useState<TierKey>('average');
   const [customPercent, setCustomPercent] = useState<number>(tippingCulture.average.percent);
   const [roundMode, setRoundMode] = useState<RoundMode>('none');
@@ -93,6 +108,28 @@ export const TipResults: React.FC<TipResultsProps> = ({
     };
     onUpdateReceipt(updated);
     setIsEditingReceipt(false);
+  };
+
+  // The scan's own tiers apply to the detected service; switching service uses that service's local range
+  const percents =
+    serviceType === detectedService
+      ? {
+          poor: tippingCulture.poor?.percent ?? 0,
+          minimum: tippingCulture.minimum.percent,
+          average: tippingCulture.average.percent,
+          high: tippingCulture.high.percent,
+        }
+      : (() => {
+          const tiers = getServiceTiers(receipt.detectedCountry?.code, serviceType);
+          return { poor: tiers.poor, minimum: tiers.min, average: tiers.avg, high: tiers.high };
+        })();
+
+  const handleServiceChange = (next: ServiceType) => {
+    setServiceType(next);
+    setSelectedTier('average');
+    setCustomPercent(
+      next === detectedService ? tippingCulture.average.percent : getServiceTiers(receipt.detectedCountry?.code, next).avg
+    );
   };
 
   const SourceIcon = SOURCE_ICON[receipt.locationSource || 'receipt'];
@@ -173,13 +210,18 @@ export const TipResults: React.FC<TipResultsProps> = ({
         )}
       </div>
 
+      {/* Type of service: detected from the receipt, tap to change */}
+      <div>
+        <SectionCaption>{t(SERVICE_OPTIONS.find((o) => o.value === serviceType)!.labelKey)}</SectionCaption>
+        <Segmented<ServiceType>
+          value={serviceType}
+          onChange={handleServiceChange}
+          options={SERVICE_OPTIONS.map((o) => ({ value: o.value, icon: o.icon, title: t(o.labelKey) }))}
+        />
+      </div>
+
       <TipPanel
-        percents={{
-          poor: tippingCulture.poor?.percent ?? 0,
-          minimum: tippingCulture.minimum.percent,
-          average: tippingCulture.average.percent,
-          high: tippingCulture.high.percent,
-        }}
+        percents={percents}
         selected={selectedTier}
         onSelect={setSelectedTier}
         customPercent={customPercent}

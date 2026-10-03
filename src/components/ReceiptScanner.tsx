@@ -1,4 +1,4 @@
-import React, { useRef, useState } from 'react';
+import React, { useLayoutEffect, useRef, useState } from 'react';
 import { Camera, ImageUp, ShieldCheck, Lock, ChevronRight } from 'lucide-react';
 import { SAMPLE_RECEIPTS, SampleReceipt } from '../data/sampleReceipts';
 import { LiveCameraModal } from './LiveCameraModal';
@@ -152,9 +152,9 @@ export const ReceiptScanner: React.FC<ReceiptScannerProps> = ({
           ) : (
             <>
               <ReceiptIllustration />
-              <h2 className="mt-6 text-[28px] font-bold tracking-tight leading-tight text-zinc-900 dark:text-white">
+              <FitLine className="mt-6 text-[28px] font-bold tracking-tight leading-tight text-zinc-900 dark:text-white">
                 {t('snapReceipt')} <span className="ig-gradient-text">{t('snapReceiptSub')}</span>
-              </h2>
+              </FitLine>
 
               <div className="mt-6 grid grid-cols-2 gap-2.5">
                 <button
@@ -223,6 +223,32 @@ export const ReceiptScanner: React.FC<ReceiptScannerProps> = ({
         </div>
       </div>
     </div>
+  );
+};
+
+/** A heading kept on one line: shrinks its font until it fits the available width (any language) */
+const FitLine: React.FC<{ children: React.ReactNode; className?: string; minPx?: number }> = ({ children, className = '', minPx = 14 }) => {
+  const ref = useRef<HTMLHeadingElement>(null);
+  useLayoutEffect(() => {
+    const el = ref.current;
+    if (!el) return;
+    const fit = () => {
+      el.style.fontSize = '';
+      let size = parseFloat(getComputedStyle(el).fontSize);
+      while (el.scrollWidth > el.clientWidth && size > minPx) {
+        size -= 1;
+        el.style.fontSize = `${size}px`;
+      }
+    };
+    fit();
+    const ro = new ResizeObserver(fit);
+    ro.observe(el.parentElement || el);
+    return () => ro.disconnect();
+  }, [children, minPx]);
+  return (
+    <h2 ref={ref} className={`whitespace-nowrap overflow-hidden ${className}`}>
+      {children}
+    </h2>
   );
 };
 

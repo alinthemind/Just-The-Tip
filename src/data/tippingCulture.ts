@@ -1,3 +1,13 @@
+export type ServiceType = 'restaurant' | 'bar' | 'cafe' | 'taxi' | 'beauty';
+export const SERVICE_TYPES: ServiceType[] = ['restaurant', 'bar', 'cafe', 'taxi', 'beauty'];
+
+export interface TierPercents {
+  poor: number;
+  min: number;
+  avg: number;
+  high: number;
+}
+
 export interface TippingCultureRule {
   countryCode: string;
   countryName: string;
@@ -21,9 +31,13 @@ export interface TippingCultureRule {
   restaurantAdvice: string;
   counterCafeAdvice: string;
   barAdvice: string;
+  beautyAdvice: string; // hair & nail salons, spas, massage
+  hotelAdvice: string; // porters, housekeeping, concierge
   taxiAdvice: string;
   deliveryAdvice: string;
   specialRules?: string[];
+  /** Tip ranges for services other than restaurants, where they differ from the defaults in getServiceTiers */
+  serviceTiers?: Partial<Record<Exclude<ServiceType, 'restaurant'>, TierPercents>>;
 }
 
 export const COUNTRY_TIPPING_DATABASE: Record<string, TippingCultureRule> = {
@@ -46,13 +60,16 @@ export const COUNTRY_TIPPING_DATABASE: Record<string, TippingCultureRule> = {
     cultureSummary: 'Tipping is an essential part of American dining culture because waitstaff often receive sub-minimum base wages. 18-20% is the standard baseline.',
     restaurantAdvice: 'Calculate 18-20% on the pre-tax subtotal. 15% is considered bare minimum for acceptable service. Check the bill for automatic gratuities (often 18-20% for parties of 5-6+).',
     counterCafeAdvice: 'Optional $1 or rounding up to the next dollar, or selecting 10-15% on card kiosks.',
+    beautyAdvice: 'Hair salons, nail salons and spas: 15-20% of the service price. Tip the shampoo assistant $3-5 separately.',
+    hotelAdvice: 'Porters $1-2 per bag, housekeeping $3-5 per night (leave it daily), concierge $5-20 for special requests, valet $2-5.',
     barAdvice: '$1 to $2 per beer/wine, or 18-20% of the total tab.',
     taxiAdvice: '15-20% of the fare, or round up to the nearest $5.',
     deliveryAdvice: '15-20% (minimum $3 to $5) or more during inclement weather.',
     specialRules: [
       'Always tip on the pre-tax subtotal, not the taxed grand total.',
       'Check for "Service Charge", "Kitchen Appreciation Fee", or "Auto-Gratuity" before tipping.'
-    ]
+    ],
+    serviceTiers: { bar: { poor: 10, min: 15, avg: 18, high: 20 }, cafe: { poor: 0, min: 0, avg: 10, high: 15 }, taxi: { poor: 10, min: 15, avg: 18, high: 20 }, beauty: { poor: 10, min: 15, avg: 18, high: 20 } }
   },
   CA: {
     countryCode: 'CA',
@@ -73,10 +90,13 @@ export const COUNTRY_TIPPING_DATABASE: Record<string, TippingCultureRule> = {
     cultureSummary: 'Similar to the US, tipping 15-18% is expected in Canadian restaurants. Many card terminals default to 15%, 18%, or 20%.',
     restaurantAdvice: '15% for standard service, 18-20% for great service, calculated on pre-tax subtotal.',
     counterCafeAdvice: 'Optional 5-10% or round up loose change.',
+    beautyAdvice: '15-20% at hair salons, nail salons and spas.',
+    hotelAdvice: 'Porters $1-2 per bag, housekeeping $2-5 per night, concierge $5-10 for reservations or tickets.',
     barAdvice: '$1-$2 per drink or 15% on the tab.',
     taxiAdvice: '10-15% of the fare.',
     deliveryAdvice: '10-15% (minimum $3-$4).',
-    specialRules: ['Calculate tips on the pre-tax amount to avoid tipping on GST/PST/HST.']
+    specialRules: ['Calculate tips on the pre-tax amount to avoid tipping on GST/PST/HST.'],
+    serviceTiers: { bar: { poor: 10, min: 15, avg: 18, high: 20 }, cafe: { poor: 0, min: 0, avg: 10, high: 15 }, taxi: { poor: 5, min: 10, avg: 15, high: 20 }, beauty: { poor: 10, min: 15, avg: 18, high: 20 } }
   },
   GB: {
     countryCode: 'GB',
@@ -97,10 +117,13 @@ export const COUNTRY_TIPPING_DATABASE: Record<string, TippingCultureRule> = {
     cultureSummary: 'Tipping in the UK is appreciated but discretionary. A 12.5% optional service charge is very frequently already added to restaurant bills in London and major cities.',
     restaurantAdvice: 'First check if "Optional 12.5% Service Charge" is already included on the receipt. If included, you do NOT need to leave extra. If not included, 10-12.5% is customary.',
     counterCafeAdvice: 'Not expected; change jar or round up to the nearest £1.',
+    beautyAdvice: 'Around 10% for hairdressers and spa treatments is appreciated but optional; nail salons rarely expect it.',
+    hotelAdvice: 'Not expected; £1-2 per bag for a porter and a few pounds for housekeeping at upscale hotels is appreciated.',
     barAdvice: 'Never tip at the bar. If you want to show appreciation to a friendly bartender, say "and one for yourself".',
     taxiAdvice: 'Round up to the nearest £1 or £2 for black cabs.',
     deliveryAdvice: '£1 to £2 cash or round up.',
-    specialRules: ['If an optional service charge is already added, you can ask for it to be removed if service was poor.']
+    specialRules: ['If an optional service charge is already added, you can ask for it to be removed if service was poor.'],
+    serviceTiers: { bar: { poor: 0, min: 0, avg: 0, high: 10 }, cafe: { poor: 0, min: 0, avg: 0, high: 10 }, taxi: { poor: 0, min: 0, avg: 10, high: 15 }, beauty: { poor: 0, min: 0, avg: 10, high: 15 } }
   },
   FR: {
     countryCode: 'FR',
@@ -121,6 +144,8 @@ export const COUNTRY_TIPPING_DATABASE: Record<string, TippingCultureRule> = {
     cultureSummary: 'By French law, all restaurant bills include a 15% service charge ("Service compris"). Tipping ("pourboire") is purely a token gesture for good hospitality.',
     restaurantAdvice: 'Servers earn a living wage and healthcare. Leaving 1€ to 2€ per person in cash on the table is polite in casual restaurants. 5-10% is generous in fine dining.',
     counterCafeAdvice: 'Leave the small coin change (e.g. 20-50 cents) from your coffee.',
+    beautyAdvice: 'Not expected; leave 2-5€ for a hairdresser or spa therapist if you are pleased.',
+    hotelAdvice: '1-2€ per bag for porters and 1-2€ per night for housekeeping at nicer hotels; concierge 10-20€ for hard-to-get bookings.',
     barAdvice: 'Not expected; round up to the nearest euro if seated with table service.',
     taxiAdvice: 'Round up to the nearest euro.',
     deliveryAdvice: '1€ or 2€ cash to the rider.',
@@ -145,6 +170,8 @@ export const COUNTRY_TIPPING_DATABASE: Record<string, TippingCultureRule> = {
     cultureSummary: 'Tipping ("la mancia") is not expected in Italy. Most sit-down bills already include "Coperto" (cover charge for bread and linen) or "Servizio".',
     restaurantAdvice: 'Check for "coperto" (usually 1.50€ - 4€ per person). Leaving 1€ to 2€ per person or rounding up the bill in cash is a friendly thank you.',
     counterCafeAdvice: 'Tossing a 10 or 20 cent coin on the counter when ordering an espresso at the bar is traditional.',
+    beautyAdvice: 'Not expected; rounding up or a few euros for a hairdresser is a kind gesture.',
+    hotelAdvice: '1-2€ per bag for porters and 1-2€ per night for housekeeping; more at luxury hotels.',
     barAdvice: 'Not expected.',
     taxiAdvice: 'Round up to the nearest euro.',
     deliveryAdvice: '1€ to 2€ cash.',
@@ -169,6 +196,8 @@ export const COUNTRY_TIPPING_DATABASE: Record<string, TippingCultureRule> = {
     cultureSummary: 'Service is legally included in Germany, but a "Trinkgeld" of 5-10% or rounding up to the next convenient euro amount is standard etiquette.',
     restaurantAdvice: 'Round up the bill when paying the server directly. Tell them the total you are paying (e.g. if the bill is 46€, say "50 bitte" or hand 50€ and say "Stimmt so" to mean keep the change).',
     counterCafeAdvice: 'Tip jar or round up to the nearest 50 cents.',
+    beautyAdvice: 'Round up or tip 5-10% for hairdressers and beauticians.',
+    hotelAdvice: '1-2€ per bag for porters and 1-3€ per night for housekeeping.',
     barAdvice: 'Round up to the next euro per drink.',
     taxiAdvice: 'Round up to the nearest euro or add 10%.',
     deliveryAdvice: '1€ to 2€ in cash.',
@@ -193,6 +222,8 @@ export const COUNTRY_TIPPING_DATABASE: Record<string, TippingCultureRule> = {
     cultureSummary: 'Tipping ("propina") in Spain is completely optional. Locals leave small loose change or 5% if service was particularly friendly.',
     restaurantAdvice: 'Leave 1€ to 2€ in coins on the small saucer or bill tray. For upscale restaurants, 5-10% is appreciated.',
     counterCafeAdvice: 'Leave the 10-20 cent coins from your change on the counter.',
+    beautyAdvice: 'Not expected; a few euros for great service at a salon or spa is appreciated.',
+    hotelAdvice: '1€ per bag for porters and 1-2€ per night for housekeeping is a kind gesture.',
     barAdvice: 'Not expected for tapas and cañas.',
     taxiAdvice: 'Round up to the nearest euro.',
     deliveryAdvice: '1€ or round up.',
@@ -217,6 +248,8 @@ export const COUNTRY_TIPPING_DATABASE: Record<string, TippingCultureRule> = {
     cultureSummary: 'DO NOT TIP IN JAPAN. Tipping is not part of Japanese culture and can be considered rude, confusing, or insulting. Excellent service is standard and pride in one’s work is paramount.',
     restaurantAdvice: 'Pay the exact bill amount at the front cash register (not at the table). If you leave extra money, staff will often run out into the street to return it to you! Simply say "Gochisousama deshita" (Thank you for the delicious meal).',
     counterCafeAdvice: 'No tipping. Pay exact amount into the coin tray provided.',
+    beautyAdvice: 'Do not tip at salons, spas or onsen; service is included in the price.',
+    hotelAdvice: 'Do not tip hotel staff; at a ryokan you may hand a small gift of cash in an envelope, but it is not expected.',
     barAdvice: 'No tipping. Izakayas may charge an "Otoshi" (table appetizer fee of ~300-500¥).',
     taxiAdvice: 'No tipping. Drivers will give you exact change down to the 1-yen coin.',
     deliveryAdvice: 'No tipping.',
@@ -244,6 +277,8 @@ export const COUNTRY_TIPPING_DATABASE: Record<string, TippingCultureRule> = {
     cultureSummary: 'Tipping is not customary in South Korea. All taxes (10% VAT) and service are factored into the stated price.',
     restaurantAdvice: 'Pay the exact amount at the counter on your way out. A polite "Kamsahamnida" (thank you) is the customary appreciation.',
     counterCafeAdvice: 'No tipping.',
+    beautyAdvice: 'Not expected at salons or spas; prices are final.',
+    hotelAdvice: 'Not expected; service is included in hotel rates.',
     barAdvice: 'No tipping.',
     taxiAdvice: 'Round up to nearest 1,000 KRW or let them keep small change.',
     deliveryAdvice: 'No tipping needed (delivery fees are included in the app).',
@@ -268,6 +303,8 @@ export const COUNTRY_TIPPING_DATABASE: Record<string, TippingCultureRule> = {
     cultureSummary: 'Australia has some of the highest minimum hospitality wages in the world. Tipping is never expected, though rounding up or leaving 5-10% at high-end dining is welcome.',
     restaurantAdvice: 'For casual dining, pay the bill total. For exceptional service or fine dining, 5-10% is appreciated.',
     counterCafeAdvice: 'Tip jar on counter if you have loose coins.',
+    beautyAdvice: 'Not expected at salons or spas; a small tip for exceptional service is welcome.',
+    hotelAdvice: 'Not expected; a few dollars for a porter at luxury hotels is welcome.',
     barAdvice: 'No tipping at the bar.',
     taxiAdvice: 'Round up to the nearest dollar.',
     deliveryAdvice: '$2-$3 in app or cash.',
@@ -292,6 +329,8 @@ export const COUNTRY_TIPPING_DATABASE: Record<string, TippingCultureRule> = {
     cultureSummary: 'Tipping is not part of everyday life in New Zealand. Workers receive fair award wages.',
     restaurantAdvice: 'Only tip (5-10%) for truly exceptional dining service. Otherwise pay the bill as presented.',
     counterCafeAdvice: 'Drop coins in tip jars if desired.',
+    beautyAdvice: 'Not expected; prices include service.',
+    hotelAdvice: 'Not expected.',
     barAdvice: 'No tipping.',
     taxiAdvice: 'Round up to the nearest dollar.',
     deliveryAdvice: 'Optional $2-$3.',
@@ -316,10 +355,13 @@ export const COUNTRY_TIPPING_DATABASE: Record<string, TippingCultureRule> = {
     cultureSummary: 'Tipping ("propina") is customary and deeply ingrained in Mexico, as service staff rely on it for their income.',
     restaurantAdvice: '10-15% is standard. Always check the receipt to ensure "propina" has not already been added without asking (it is legally voluntary under PROFECO rules).',
     counterCafeAdvice: '5-10 pesos in the propina jar.',
+    beautyAdvice: '10-15% at salons and spas; tip massage therapists in cash.',
+    hotelAdvice: 'Porters 20-50 MXN per bag, housekeeping 50-100 MXN per night; all-inclusive staff appreciate small cash tips.',
     barAdvice: '10-20 pesos per drink or 10-15% of tab.',
     taxiAdvice: 'Not expected unless the driver helped with heavy luggage (10-20 pesos).',
     deliveryAdvice: '15-30 pesos.',
-    specialRules: ['Waiters will ask if you want to include "propina" when bringing the card terminal.']
+    specialRules: ['Waiters will ask if you want to include "propina" when bringing the card terminal.'],
+    serviceTiers: { cafe: { poor: 0, min: 0, avg: 5, high: 10 }, taxi: { poor: 0, min: 0, avg: 0, high: 10 }, beauty: { poor: 5, min: 10, avg: 15, high: 20 } }
   },
   CH: {
     countryCode: 'CH',
@@ -340,6 +382,8 @@ export const COUNTRY_TIPPING_DATABASE: Record<string, TippingCultureRule> = {
     cultureSummary: 'By Swiss federal law, service charges and VAT are included in all restaurant and bar prices. Rounding up to the nearest 5 or 10 CHF is common.',
     restaurantAdvice: 'Rounding up the bill (e.g. 92 CHF to 95 or 100 CHF) is customary for good service.',
     counterCafeAdvice: 'Round up to the nearest franc.',
+    beautyAdvice: 'Service is included; rounding up for your hairdresser is optional.',
+    hotelAdvice: 'Service is included; 1-2 CHF per bag for porters is optional.',
     barAdvice: 'Round up to the nearest franc.',
     taxiAdvice: 'Round up to the nearest 2-5 CHF.',
     deliveryAdvice: '2-5 CHF.',
@@ -364,6 +408,8 @@ export const COUNTRY_TIPPING_DATABASE: Record<string, TippingCultureRule> = {
     cultureSummary: 'A 10% service fee ("taxa de serviço") is almost always printed directly onto the bill in Brazilian restaurants. Paying it is voluntary by law, but practically everyone pays it.',
     restaurantAdvice: 'If the 10% is on the bill, no additional tip is expected. You can add extra in cash for standout service.',
     counterCafeAdvice: 'Not expected.',
+    beautyAdvice: '10% at salons and spas is common; manicurists often get a small cash tip.',
+    hotelAdvice: 'Hotels usually add a 10% service charge; R$5-10 for porters is appreciated.',
     barAdvice: 'Included in the 10% service tab.',
     taxiAdvice: 'Round up to the nearest Real.',
     deliveryAdvice: '2-5 Reais in cash or via app.',
@@ -388,10 +434,13 @@ export const COUNTRY_TIPPING_DATABASE: Record<string, TippingCultureRule> = {
     cultureSummary: 'In Dubai and Abu Dhabi, most restaurants add a 10% service charge and 5% VAT. An additional cash tip of 5-10% is appreciated.',
     restaurantAdvice: 'Check if 10% service charge is on the receipt. Adding 10-15 AED or 5-10% in cash directly to your server ensures it goes into their pocket.',
     counterCafeAdvice: '5 AED in tip jar.',
+    beautyAdvice: '10-15% at salons and spas is appreciated, ideally in cash to the therapist.',
+    hotelAdvice: '10-20 AED for porters and housekeeping per night; hotels add a 10% service charge to bills.',
     barAdvice: '10-15 AED on the tab.',
     taxiAdvice: 'Round up to the nearest 5 or 10 AED.',
     deliveryAdvice: '5 to 10 AED.',
-    specialRules: ['Service charges on bills often go to the restaurant management rather than directly to servers.']
+    specialRules: ['Service charges on bills often go to the restaurant management rather than directly to servers.'],
+    serviceTiers: { taxi: { poor: 0, min: 0, avg: 5, high: 10 }, beauty: { poor: 5, min: 10, avg: 12, high: 15 } }
   },
   NL: {
     countryCode: 'NL',
@@ -412,6 +461,8 @@ export const COUNTRY_TIPPING_DATABASE: Record<string, TippingCultureRule> = {
     cultureSummary: 'Service is included in prices. A tip ("fooi") of 5-10% is common for good dining experiences.',
     restaurantAdvice: 'Round up to the nearest 5€ or leave 5-10% for attentive table service.',
     counterCafeAdvice: 'Small coins in the tip jar.',
+    beautyAdvice: 'Not expected; rounding up for a hairdresser is optional.',
+    hotelAdvice: 'Not expected; 1-2€ for porters is a nice gesture.',
     barAdvice: 'Round up to nearest euro.',
     taxiAdvice: 'Round up to nearest euro or 10%.',
     deliveryAdvice: '1€ to 2€.',
@@ -436,10 +487,13 @@ export const COUNTRY_TIPPING_DATABASE: Record<string, TippingCultureRule> = {
     cultureSummary: 'Tipping is not traditional in Thailand, but has become common in tourist areas. High-end restaurants often add 10% service charge and 7% VAT ("plus plus" ++).',
     restaurantAdvice: 'In street food stalls and casual eateries, leave the loose coin change (10-20฿). In sit-down air-conditioned restaurants, 50-100฿ or 10% is generous.',
     counterCafeAdvice: 'Tip jar on counter.',
+    beautyAdvice: '50-100฿ for a massage is customary (more at upscale spas); give it to the therapist in cash.',
+    hotelAdvice: '20-50฿ per bag for porters and 20-100฿ per night for housekeeping.',
     barAdvice: '20-50฿.',
     taxiAdvice: 'Round up to the nearest 10 or 20 THB.',
     deliveryAdvice: '20 to 50 THB.',
-    specialRules: ['Check if "10% SC" is already on the bill in international hotels and upscale dining.']
+    specialRules: ['Check if "10% SC" is already on the bill in international hotels and upscale dining.'],
+    serviceTiers: { beauty: { poor: 0, min: 10, avg: 15, high: 20 } }
   },
   IN: {
     countryCode: 'IN',
@@ -460,6 +514,8 @@ export const COUNTRY_TIPPING_DATABASE: Record<string, TippingCultureRule> = {
     cultureSummary: 'Tipping ("baksheesh") is customary in India. Many restaurants add a 5-10% service charge to the bill.',
     restaurantAdvice: 'If a service charge is already added, you do not need to tip. If not, 7-10% is customary.',
     counterCafeAdvice: 'Optional change in jar.',
+    beautyAdvice: 'About 10% at salons and spas; small cash tips for helpers are common.',
+    hotelAdvice: '50-100₹ per bag for porters and 100-200₹ per day for housekeeping.',
     barAdvice: '50-100 INR per round.',
     taxiAdvice: 'Round up or 20-50 INR for auto-rickshaws and cabs.',
     deliveryAdvice: '30 to 50 INR.',
@@ -484,6 +540,8 @@ export const COUNTRY_TIPPING_DATABASE: Record<string, TippingCultureRule> = {
     cultureSummary: 'Tipping is not required in Greece, but leaving small change on the table in tavernas is customary and deeply appreciated by young seasonal staff.',
     restaurantAdvice: 'Leave 1€ to 3€ cash on the table, or round up the bill. In fine dining, 5-10% is appropriate.',
     counterCafeAdvice: 'Loose change.',
+    beautyAdvice: 'Optional; round up or leave 5-10% for good salon or spa service.',
+    hotelAdvice: '1-2€ per bag for porters and 1-2€ per night for housekeeping.',
     barAdvice: 'Round up.',
     taxiAdvice: 'Round up to the nearest euro.',
     deliveryAdvice: '1€.',
@@ -508,6 +566,8 @@ export const COUNTRY_TIPPING_DATABASE: Record<string, TippingCultureRule> = {
     cultureSummary: 'Tipping is NOT customary in Singapore. Hawker centres strictly do not accept tips. Sit-down restaurants automatically add 10% Service Charge + 9% GST ("++").',
     restaurantAdvice: 'The 10% service charge is already on your bill. No additional tip is expected.',
     counterCafeAdvice: 'No tip.',
+    beautyAdvice: 'Not expected; many spas already add a service charge.',
+    hotelAdvice: 'Not expected; hotel bills include a 10% service charge.',
     barAdvice: 'Service charge already included.',
     taxiAdvice: 'Round up to the nearest dollar.',
     deliveryAdvice: '$1-$2 via app.',
@@ -535,6 +595,8 @@ export const COUNTRY_TIPPING_DATABASE: Record<string, TippingCultureRule> = {
     cultureSummary: 'Tipping is not part of Chinese culture and may even be refused or viewed with suspicion. High-end international hotels may levy a 10-15% service charge.',
     restaurantAdvice: 'Do not tip in Chinese restaurants. Payment is done via WeChat Pay or Alipay by scanning a QR code.',
     counterCafeAdvice: 'No tipping.',
+    beautyAdvice: 'Not expected at salons or massage parlors; upscale hotel spas may add a service charge.',
+    hotelAdvice: 'Not expected in most hotels; international hotels may add a service charge.',
     barAdvice: 'No tipping.',
     taxiAdvice: 'No tipping.',
     deliveryAdvice: 'No tipping.',
@@ -562,6 +624,8 @@ export const COUNTRY_TIPPING_DATABASE: Record<string, TippingCultureRule> = {
     cultureSummary: 'Standard tip in Hong Kong is NOT 18%. Sit-down restaurants automatically bill a 10% Service Charge (加一服務費). Additional tipping is purely discretionary—locals leave loose coins or round up to the nearest HK$10 or HK$20.',
     restaurantAdvice: 'Look for "+10% Service Charge" (加一) on your bill—it is already included. Extra tipping is not expected. At local cha chaan tengs, dim sum halls, and tea houses, tipping is 0%. In high-end Western dining, 5-10% is generous.',
     counterCafeAdvice: 'No tip expected; counter tip jars are strictly optional.',
+    beautyAdvice: 'Not expected at salons; hotel spas add a 10% service charge, and a small extra for a massage therapist is optional.',
+    hotelAdvice: 'Hotel bills include a 10% service charge; HK$10-20 for a porter is customary.',
     barAdvice: 'Check if 10% service charge was added to the tab; otherwise round up or leave coin change.',
     taxiAdvice: 'Round up fare to the nearest dollar or HK$5/10 (drivers routinely round down or keep small coins).',
     deliveryAdvice: 'HK$10 to HK$20 cash or in-app tip.',
@@ -593,6 +657,8 @@ export const COUNTRY_TIPPING_DATABASE: Record<string, TippingCultureRule> = {
     cultureSummary: 'Tipping is not customary in Taiwan. Casual eateries and night markets do not accept tips. Formal restaurants usually add a 10% service fee (服務費) to the bill.',
     restaurantAdvice: 'If the 10% service charge is included, you do not need to tip anything extra. In local noodle shops and night markets, paying the exact amount is the norm.',
     counterCafeAdvice: 'No tipping.',
+    beautyAdvice: 'Not expected at salons or massage shops.',
+    hotelAdvice: 'Hotel bills include a 10% service charge; NT$50-100 for porters is optional.',
     barAdvice: 'Check if 10% service charge is included; otherwise no tip expected.',
     taxiAdvice: 'Round up to nearest NT$5 or NT$10.',
     deliveryAdvice: 'NT$20 to NT$50 in-app.',
@@ -617,10 +683,13 @@ export const COUNTRY_TIPPING_DATABASE: Record<string, TippingCultureRule> = {
     cultureSummary: 'Tipping in Ireland is customary for good sit-down restaurant service (10-12%), but not expected in pubs at the bar.',
     restaurantAdvice: '10% is standard for table service. Check if a service charge was already added for larger groups.',
     counterCafeAdvice: 'Tip jar on counter.',
+    beautyAdvice: 'About 10% for hairdressers and spa treatments is appreciated.',
+    hotelAdvice: '€1-2 per bag for porters; housekeeping tips are optional.',
     barAdvice: 'No tipping for drinks ordered at the bar.',
     taxiAdvice: 'Round up to the nearest euro or 10%.',
     deliveryAdvice: '2€ to 3€.',
-    specialRules: ['By Irish law (Payment of Wages Amendment Act), tips and gratuities must be distributed directly to workers.']
+    specialRules: ['By Irish law (Payment of Wages Amendment Act), tips and gratuities must be distributed directly to workers.'],
+    serviceTiers: { bar: { poor: 0, min: 0, avg: 0, high: 10 }, cafe: { poor: 0, min: 0, avg: 0, high: 10 }, taxi: { poor: 0, min: 0, avg: 10, high: 10 }, beauty: { poor: 0, min: 0, avg: 10, high: 15 } }
   },
   AR: {
     countryCode: 'AR',
@@ -641,6 +710,8 @@ export const COUNTRY_TIPPING_DATABASE: Record<string, TippingCultureRule> = {
     cultureSummary: 'A 10% tip (propina) is the norm in Argentine restaurants. The "cubierto" cover charge on the bill pays for bread and table setting, not service.',
     restaurantAdvice: 'Leave 10% for table service. Card machines often have no tip line, so tip in cash pesos.',
     counterCafeAdvice: 'Not expected; leave small change.',
+    beautyAdvice: 'About 10% for hairdressers and manicurists, in cash.',
+    hotelAdvice: 'Porters ARS equivalent of US$1 per bag; housekeeping a small tip per night.',
     barAdvice: 'Round up or leave 10% of the tab.',
     taxiAdvice: 'Round up to the nearest note.',
     deliveryAdvice: 'Round up or a small cash tip.',
@@ -665,6 +736,8 @@ export const COUNTRY_TIPPING_DATABASE: Record<string, TippingCultureRule> = {
     cultureSummary: 'Chilean restaurants print a suggested 10% "propina sugerida" on the bill, and servers will ask whether to include it. It is voluntary but almost always paid.',
     restaurantAdvice: 'Say yes when asked "¿Desea incluir la propina?" to add the suggested 10%.',
     counterCafeAdvice: 'Not expected.',
+    beautyAdvice: 'About 10% at salons and spas is appreciated.',
+    hotelAdvice: 'Porters about US$1 per bag in pesos; housekeeping a small tip per night.',
     barAdvice: '10% at table service.',
     taxiAdvice: 'Not expected; round up.',
     deliveryAdvice: 'Small tip for good service.',
@@ -689,6 +762,8 @@ export const COUNTRY_TIPPING_DATABASE: Record<string, TippingCultureRule> = {
     cultureSummary: 'About 10% is standard in sit-down restaurants in Peru. Upscale places in Lima may already add a service charge ("servicio").',
     restaurantAdvice: 'Leave 10% if no service charge is listed; tip in cash so it reaches the server.',
     counterCafeAdvice: 'Not expected; leave coins.',
+    beautyAdvice: 'Optional; about 10% at salons and spas for good service.',
+    hotelAdvice: 'Porters 3-5 soles per bag; housekeeping 5-10 soles per night.',
     barAdvice: '10% or a few soles.',
     taxiAdvice: 'Not expected: fares are agreed before the ride.',
     deliveryAdvice: 'A few soles.',
@@ -713,6 +788,8 @@ export const COUNTRY_TIPPING_DATABASE: Record<string, TippingCultureRule> = {
     cultureSummary: 'By law, Colombian restaurants may suggest a voluntary 10% tip ("propina voluntaria") on the bill, and must ask whether you want to pay it.',
     restaurantAdvice: 'Accept the suggested 10% for good service; you may decline or change it.',
     counterCafeAdvice: 'Not expected.',
+    beautyAdvice: 'About 10% at salons and spas is appreciated.',
+    hotelAdvice: 'Porters about 5,000 COP per bag; housekeeping a small tip per night.',
     barAdvice: '10% if table service.',
     taxiAdvice: 'Not expected; round up.',
     deliveryAdvice: 'A small cash tip.',
@@ -737,6 +814,8 @@ export const COUNTRY_TIPPING_DATABASE: Record<string, TippingCultureRule> = {
     cultureSummary: 'Costa Rican restaurant bills include a legally required 10% service charge plus 13% VAT, so extra tipping is optional.',
     restaurantAdvice: 'The 10% service is already included; add 5-10% extra only for outstanding service.',
     counterCafeAdvice: 'Not expected.',
+    beautyAdvice: 'About 10% at spas if a service charge is not already included.',
+    hotelAdvice: 'Porters US$1-2 per bag; housekeeping US$1-3 per night.',
     barAdvice: 'Included in table bills.',
     taxiAdvice: 'Not expected.',
     deliveryAdvice: 'Small tip optional.',
@@ -761,10 +840,13 @@ export const COUNTRY_TIPPING_DATABASE: Record<string, TippingCultureRule> = {
     cultureSummary: 'Dominican bills include a legally required 10% "ley" service charge plus 18% ITBIS tax. A small extra cash tip for the server is still customary.',
     restaurantAdvice: 'Leave an extra 5-10% in cash for the server; the 10% "ley" charge is shared with all staff.',
     counterCafeAdvice: 'Not expected.',
+    beautyAdvice: '10-15% at resort spas and salons unless a service charge is added.',
+    hotelAdvice: 'Porters US$1-2 per bag; housekeeping US$2-5 per night, even at all-inclusive resorts.',
     barAdvice: 'A few pesos per drink at resorts.',
     taxiAdvice: 'Not expected; fares are agreed upfront.',
     deliveryAdvice: 'A small cash tip.',
-    specialRules: ['"10% ley" on the bill is the legal service charge, not optional.']
+    specialRules: ['"10% ley" on the bill is the legal service charge, not optional.'],
+    serviceTiers: { beauty: { poor: 5, min: 10, avg: 12, high: 15 } }
   },
   JM: {
     countryCode: 'JM',
@@ -785,10 +867,13 @@ export const COUNTRY_TIPPING_DATABASE: Record<string, TippingCultureRule> = {
     cultureSummary: 'Tipping 10-20% is expected in Jamaica unless a service charge is already on the bill. US dollars are widely accepted for tips.',
     restaurantAdvice: 'Leave 15% unless a 10-15% service charge is already added; all-inclusive resorts often say tips are included.',
     counterCafeAdvice: 'Small change or J$100-200.',
+    beautyAdvice: '10-15% at spas and salons unless a service charge is added.',
+    hotelAdvice: 'Porters US$1-2 per bag; housekeeping US$2-5 per night unless the resort says tips are included.',
     barAdvice: 'US$1 per drink.',
     taxiAdvice: '10-15% of the fare.',
     deliveryAdvice: '10%.',
-    specialRules: ['Check for a service charge before tipping, especially at hotels and resorts.']
+    specialRules: ['Check for a service charge before tipping, especially at hotels and resorts.'],
+    serviceTiers: { beauty: { poor: 5, min: 10, avg: 15, high: 15 } }
   },
   PT: {
     countryCode: 'PT',
@@ -809,6 +894,8 @@ export const COUNTRY_TIPPING_DATABASE: Record<string, TippingCultureRule> = {
     cultureSummary: 'Tipping in Portugal is modest. Rounding up or leaving 5-10% for good restaurant service is appreciated but never required.',
     restaurantAdvice: 'Leave 5-10% in sit-down restaurants; rounding up is fine in casual places.',
     counterCafeAdvice: 'Leave small coins.',
+    beautyAdvice: 'Optional; round up or leave 5-10% for a hairdresser or spa therapist.',
+    hotelAdvice: '1€ per bag for porters; housekeeping tips are optional.',
     barAdvice: 'Round up.',
     taxiAdvice: 'Round up to the nearest euro.',
     deliveryAdvice: '1€ to 2€.',
@@ -833,6 +920,8 @@ export const COUNTRY_TIPPING_DATABASE: Record<string, TippingCultureRule> = {
     cultureSummary: 'Austrians round up the bill or add 5-10%. Tell the server the total you want to pay instead of leaving money on the table.',
     restaurantAdvice: 'Say the total including tip when paying ("Stimmt so" means keep the change).',
     counterCafeAdvice: 'Round up to the next euro.',
+    beautyAdvice: 'Round up or tip 5-10% for hairdressers and beauticians.',
+    hotelAdvice: '1-2€ per bag for porters and 1-2€ per night for housekeeping.',
     barAdvice: 'Round up.',
     taxiAdvice: 'Round up or add 10%.',
     deliveryAdvice: '1€ to 2€.',
@@ -857,6 +946,8 @@ export const COUNTRY_TIPPING_DATABASE: Record<string, TippingCultureRule> = {
     cultureSummary: 'Service and VAT are included in Belgian prices by law. Rounding up or leaving a few euros is a kind gesture, not an obligation.',
     restaurantAdvice: 'Round up or leave 5-10% for excellent service.',
     counterCafeAdvice: 'Not expected.',
+    beautyAdvice: 'Not expected; rounding up for your hairdresser is a kind gesture.',
+    hotelAdvice: 'Not expected; 1-2€ for porters is a nice gesture.',
     barAdvice: 'Round up.',
     taxiAdvice: 'Included in the fare; rounding up is optional.',
     deliveryAdvice: '1€ to 2€.'
@@ -880,6 +971,8 @@ export const COUNTRY_TIPPING_DATABASE: Record<string, TippingCultureRule> = {
     cultureSummary: 'A 10% tip is customary in Czech restaurants. Tell the server the total you want to pay when settling the bill.',
     restaurantAdvice: 'Add about 10% and say the total amount when paying.',
     counterCafeAdvice: 'Round up.',
+    beautyAdvice: 'About 10% for hairdressers and spa therapists.',
+    hotelAdvice: '20-50 Kč per bag for porters; housekeeping tips are optional.',
     barAdvice: 'Round up per round.',
     taxiAdvice: 'Round up.',
     deliveryAdvice: '20-50 Kč.',
@@ -904,6 +997,8 @@ export const COUNTRY_TIPPING_DATABASE: Record<string, TippingCultureRule> = {
     cultureSummary: 'About 10% is standard in Polish restaurants. Groups are often charged a service fee automatically.',
     restaurantAdvice: 'Leave 10% for table service; check for "serwis" on bills for groups of six or more.',
     counterCafeAdvice: 'Not expected.',
+    beautyAdvice: 'About 10% at salons and spas.',
+    hotelAdvice: '5-10 zł for porters; housekeeping tips are optional.',
     barAdvice: 'Round up.',
     taxiAdvice: 'Round up.',
     deliveryAdvice: '5-10 zł.',
@@ -928,6 +1023,8 @@ export const COUNTRY_TIPPING_DATABASE: Record<string, TippingCultureRule> = {
     cultureSummary: '10-15% is customary in Hungary, but many Budapest restaurants already add a 10-15% service charge ("szervizdíj").',
     restaurantAdvice: 'If no service charge is listed, add 10-15% and tell the server the total.',
     counterCafeAdvice: 'Round up.',
+    beautyAdvice: 'About 10% for hairdressers and for massages at thermal baths.',
+    hotelAdvice: 'Porters 500 Ft per bag; housekeeping tips are optional.',
     barAdvice: 'Round up.',
     taxiAdvice: 'Round up or add 10%.',
     deliveryAdvice: '500-1,000 Ft.',
@@ -952,6 +1049,8 @@ export const COUNTRY_TIPPING_DATABASE: Record<string, TippingCultureRule> = {
     cultureSummary: 'Tipping is optional in Croatia but around 10% has become usual in coastal tourist areas.',
     restaurantAdvice: 'Leave around 10% in cash for good service; card tips often cannot be added.',
     counterCafeAdvice: 'Leave small change.',
+    beautyAdvice: 'Optional; 5-10% for salon or spa services.',
+    hotelAdvice: '1-2€ per bag for porters; housekeeping tips are optional.',
     barAdvice: 'Round up.',
     taxiAdvice: 'Round up.',
     deliveryAdvice: '1€ to 2€.'
@@ -975,6 +1074,8 @@ export const COUNTRY_TIPPING_DATABASE: Record<string, TippingCultureRule> = {
     cultureSummary: 'Service charges are included in Danish prices by law and staff are well paid. Tipping is not expected; rounding up is a small extra.',
     restaurantAdvice: 'No tip required; round up or leave 5-10% for exceptional service.',
     counterCafeAdvice: 'Not expected.',
+    beautyAdvice: 'Not expected.',
+    hotelAdvice: 'Not expected.',
     barAdvice: 'Not expected.',
     taxiAdvice: 'Included in the fare.',
     deliveryAdvice: 'Not expected.'
@@ -998,6 +1099,8 @@ export const COUNTRY_TIPPING_DATABASE: Record<string, TippingCultureRule> = {
     cultureSummary: 'Tipping in Sweden is optional. Card terminals often offer a tip screen; skipping it is normal for counter service.',
     restaurantAdvice: 'Round up or leave 5-10% at dinner for good service.',
     counterCafeAdvice: 'Not expected; skip the tip screen.',
+    beautyAdvice: 'Not expected.',
+    hotelAdvice: 'Not expected.',
     barAdvice: 'Not expected.',
     taxiAdvice: 'Round up.',
     deliveryAdvice: 'Not expected.'
@@ -1021,6 +1124,8 @@ export const COUNTRY_TIPPING_DATABASE: Record<string, TippingCultureRule> = {
     cultureSummary: 'Service is included in Norwegian prices and wages are high. Rounding up or leaving 5-10% is only for excellent service.',
     restaurantAdvice: 'No tip required; round up or leave up to 10% for great service.',
     counterCafeAdvice: 'Not expected.',
+    beautyAdvice: 'Not expected.',
+    hotelAdvice: 'Not expected.',
     barAdvice: 'Not expected.',
     taxiAdvice: 'Round up.',
     deliveryAdvice: 'Not expected.'
@@ -1044,6 +1149,8 @@ export const COUNTRY_TIPPING_DATABASE: Record<string, TippingCultureRule> = {
     cultureSummary: 'Service and tax are included in Icelandic prices, and tipping is not part of the culture.',
     restaurantAdvice: 'No tip needed. Leaving a little for outstanding service is fine but uncommon.',
     counterCafeAdvice: 'Not expected.',
+    beautyAdvice: 'Not expected.',
+    hotelAdvice: 'Not expected.',
     barAdvice: 'Not expected.',
     taxiAdvice: 'Not expected.',
     deliveryAdvice: 'Not expected.'
@@ -1067,10 +1174,13 @@ export const COUNTRY_TIPPING_DATABASE: Record<string, TippingCultureRule> = {
     cultureSummary: 'A 5-10% tip ("bahşiş") is customary in Turkish restaurants. Cash tips are preferred because card tips may not reach the server.',
     restaurantAdvice: 'Leave 5-10% in cash on the table for table service.',
     counterCafeAdvice: 'Leave small coins.',
+    beautyAdvice: '10-15% at hammams and salons; give it to your attendant directly.',
+    hotelAdvice: 'Porters 20-50 ₺ per bag; housekeeping a small tip per night.',
     barAdvice: 'Round up.',
     taxiAdvice: 'Round up the fare.',
     deliveryAdvice: '10-20 ₺.',
-    specialRules: ['Check for "servis ücreti" (service charge) on the bill in upscale places.']
+    specialRules: ['Check for "servis ücreti" (service charge) on the bill in upscale places.'],
+    serviceTiers: { taxi: { poor: 0, min: 0, avg: 5, high: 10 }, beauty: { poor: 5, min: 10, avg: 12, high: 15 } }
   },
   VN: {
     countryCode: 'VN',
@@ -1091,10 +1201,13 @@ export const COUNTRY_TIPPING_DATABASE: Record<string, TippingCultureRule> = {
     cultureSummary: 'Tipping is not traditional in Vietnam but is appreciated, especially in tourist areas and for tour guides.',
     restaurantAdvice: 'Leave 5-10% or round up in sit-down restaurants; not needed at street food stalls.',
     counterCafeAdvice: 'Not expected.',
+    beautyAdvice: '10-15% (or 50,000-100,000₫) for massages and spa treatments is customary.',
+    hotelAdvice: 'Porters 20,000-50,000₫ per bag; housekeeping 20,000-50,000₫ per night.',
     barAdvice: 'Round up.',
     taxiAdvice: 'Round up.',
     deliveryAdvice: '10,000-20,000 ₫.',
-    specialRules: ['Upscale restaurants may add 5% service plus 8-10% VAT.']
+    specialRules: ['Upscale restaurants may add 5% service plus 8-10% VAT.'],
+    serviceTiers: { beauty: { poor: 0, min: 10, avg: 12, high: 15 } }
   },
   ID: {
     countryCode: 'ID',
@@ -1115,10 +1228,13 @@ export const COUNTRY_TIPPING_DATABASE: Record<string, TippingCultureRule> = {
     cultureSummary: 'Many Indonesian restaurants add a 5-10% service charge plus 10-11% tax (shown as "++"). A small extra tip is appreciated, especially in Bali.',
     restaurantAdvice: 'If a service charge is on the bill, extra tipping is optional; otherwise leave 5-10%.',
     counterCafeAdvice: 'Leave small change.',
+    beautyAdvice: 'In Bali, about 10% (Rp 20,000-50,000) for massages and spa treatments is customary.',
+    hotelAdvice: 'Hotels add a service charge; Rp 10,000-20,000 per bag for porters is customary.',
     barAdvice: 'Round up.',
     taxiAdvice: 'Round up the fare.',
     deliveryAdvice: 'Rp 5,000-10,000.',
-    specialRules: ['Menu prices marked "++" exclude service and tax.']
+    specialRules: ['Menu prices marked "++" exclude service and tax.'],
+    serviceTiers: { beauty: { poor: 0, min: 5, avg: 10, high: 15 } }
   },
   MY: {
     countryCode: 'MY',
@@ -1139,6 +1255,8 @@ export const COUNTRY_TIPPING_DATABASE: Record<string, TippingCultureRule> = {
     cultureSummary: 'Most Malaysian restaurants add a 10% service charge plus 6-8% SST, so tipping is not expected.',
     restaurantAdvice: 'No tip needed when a service charge is included; leave small change otherwise.',
     counterCafeAdvice: 'Not expected.',
+    beautyAdvice: 'Not expected; spas often add a service charge.',
+    hotelAdvice: 'Hotels add a 10% service charge; RM 2-5 for porters is optional.',
     barAdvice: 'Not expected.',
     taxiAdvice: 'Not expected; round up.',
     deliveryAdvice: 'Small change.'
@@ -1162,10 +1280,13 @@ export const COUNTRY_TIPPING_DATABASE: Record<string, TippingCultureRule> = {
     cultureSummary: 'Many Philippine restaurants add a 10% service charge. Where there is none, a 10% tip is customary.',
     restaurantAdvice: 'Check the bill: if no service charge, leave about 10%.',
     counterCafeAdvice: 'Leave small change.',
+    beautyAdvice: 'About 10% (or ₱50-100) for massages and salon services is appreciated.',
+    hotelAdvice: 'Hotels add a 10% service charge; ₱20-50 per bag for porters is customary.',
     barAdvice: 'Round up.',
     taxiAdvice: 'Round up the fare.',
     deliveryAdvice: '₱20-50.',
-    specialRules: ['If "service charge" is on the bill, an extra tip is optional.']
+    specialRules: ['If "service charge" is on the bill, an extra tip is optional.'],
+    serviceTiers: { beauty: { poor: 0, min: 5, avg: 10, high: 15 } }
   },
   KH: {
     countryCode: 'KH',
@@ -1186,10 +1307,13 @@ export const COUNTRY_TIPPING_DATABASE: Record<string, TippingCultureRule> = {
     cultureSummary: 'Tipping is not traditional in Cambodia but is appreciated, as wages are low. Prices are often in US dollars.',
     restaurantAdvice: 'Leave $1-2 or 5-10% in sit-down restaurants.',
     counterCafeAdvice: 'Not expected.',
+    beautyAdvice: '$1-3 for a massage is customary; give it to the therapist directly.',
+    hotelAdvice: 'US$1 per bag for porters and US$1-2 per night for housekeeping.',
     barAdvice: '$1.',
     taxiAdvice: 'Not expected for tuk-tuks with agreed fares; $1 is kind.',
     deliveryAdvice: '$1.',
-    specialRules: ['Tip in small US dollar bills or riel; very worn or torn dollar notes are often refused.']
+    specialRules: ['Tip in small US dollar bills or riel; very worn or torn dollar notes are often refused.'],
+    serviceTiers: { beauty: { poor: 0, min: 5, avg: 10, high: 15 } }
   },
   LK: {
     countryCode: 'LK',
@@ -1210,6 +1334,8 @@ export const COUNTRY_TIPPING_DATABASE: Record<string, TippingCultureRule> = {
     cultureSummary: 'Many Sri Lankan restaurants add a 10% service charge. A small extra tip for the server is appreciated.',
     restaurantAdvice: 'If a service charge is included, leave a little extra for great service; otherwise leave about 10%.',
     counterCafeAdvice: 'Not expected.',
+    beautyAdvice: 'About 10% at spas, or Rs 200-500 for an Ayurvedic massage therapist.',
+    hotelAdvice: 'Hotels add a service charge; Rs 100-200 per bag for porters is customary.',
     barAdvice: 'Round up.',
     taxiAdvice: 'Round up the fare.',
     deliveryAdvice: 'Rs 100-200.'
@@ -1233,6 +1359,8 @@ export const COUNTRY_TIPPING_DATABASE: Record<string, TippingCultureRule> = {
     cultureSummary: 'Maldivian resorts add a 10% service charge plus 17% tourism tax. Guests often leave extra tips for their room staff and butler at the end of the stay.',
     restaurantAdvice: 'The service charge is included; extra tips are optional.',
     counterCafeAdvice: 'Not expected.',
+    beautyAdvice: 'Resort spas add a service charge; extra tips are optional.',
+    hotelAdvice: 'Resorts add a 10% service charge; many guests also leave envelopes for their room attendant and butler at checkout.',
     barAdvice: 'Included.',
     taxiAdvice: 'Not applicable.',
     deliveryAdvice: 'Not applicable.',
@@ -1257,6 +1385,8 @@ export const COUNTRY_TIPPING_DATABASE: Record<string, TippingCultureRule> = {
     cultureSummary: 'Tipping is not part of Fijian culture. Many resorts have a staff Christmas fund instead of individual tips.',
     restaurantAdvice: 'No tip expected; contribute to the staff fund if you want to thank the team.',
     counterCafeAdvice: 'Not expected.',
+    beautyAdvice: 'Not expected.',
+    hotelAdvice: 'Not expected; many resorts have a staff Christmas fund you can give to at checkout.',
     barAdvice: 'Not expected.',
     taxiAdvice: 'Not expected.',
     deliveryAdvice: 'Not expected.'
@@ -1280,6 +1410,8 @@ export const COUNTRY_TIPPING_DATABASE: Record<string, TippingCultureRule> = {
     cultureSummary: 'Like Hong Kong, most Macau restaurants and hotels add a 10% service charge, so extra tipping is not expected.',
     restaurantAdvice: 'The 10% service charge covers it; leave small change if you wish.',
     counterCafeAdvice: 'Not expected.',
+    beautyAdvice: 'Hotel spas add a 10% service charge; extra tips are not expected.',
+    hotelAdvice: 'Hotel bills include a 10% service charge; MOP 10-20 for porters is customary.',
     barAdvice: 'Not expected.',
     taxiAdvice: 'Round up.',
     deliveryAdvice: 'Not expected.',
@@ -1304,10 +1436,13 @@ export const COUNTRY_TIPPING_DATABASE: Record<string, TippingCultureRule> = {
     cultureSummary: 'Tipping 10-15% is expected in Israeli restaurants, and servers rely on it. Service is usually not included.',
     restaurantAdvice: 'Leave 10-15%. Some places only accept tips in cash, so ask before paying by card.',
     counterCafeAdvice: 'Not expected.',
+    beautyAdvice: '10-15% at salons and spas.',
+    hotelAdvice: '₪5-10 per bag for porters and ₪10-20 per night for housekeeping.',
     barAdvice: '10%.',
     taxiAdvice: 'Not expected; round up.',
     deliveryAdvice: '₪10-20.',
-    specialRules: ['If the bill says "service included" ("sherut kalul"), no extra tip is needed.']
+    specialRules: ['If the bill says "service included" ("sherut kalul"), no extra tip is needed.'],
+    serviceTiers: { taxi: { poor: 0, min: 0, avg: 0, high: 10 }, beauty: { poor: 5, min: 10, avg: 12, high: 15 } }
   },
   JO: {
     countryCode: 'JO',
@@ -1328,6 +1463,8 @@ export const COUNTRY_TIPPING_DATABASE: Record<string, TippingCultureRule> = {
     cultureSummary: 'Upscale Jordanian restaurants often add a 10% service charge. Where there is none, about 10% is customary.',
     restaurantAdvice: 'Leave about 10% if no service charge is on the bill; tip guides and drivers on tours.',
     counterCafeAdvice: 'Round up.',
+    beautyAdvice: 'About 10% at spas and hammams.',
+    hotelAdvice: 'Hotels add a service charge; 1 JD per bag for porters is customary.',
     barAdvice: 'Round up.',
     taxiAdvice: 'Round up the fare.',
     deliveryAdvice: '1 JD.'
@@ -1351,6 +1488,8 @@ export const COUNTRY_TIPPING_DATABASE: Record<string, TippingCultureRule> = {
     cultureSummary: 'Hotels and many restaurants in Qatar add a service charge. Otherwise a 10% tip is appreciated, as staff wages are modest.',
     restaurantAdvice: 'If no service charge is on the bill, leave about 10%.',
     counterCafeAdvice: 'Not expected.',
+    beautyAdvice: 'About 10% at salons and spas is appreciated.',
+    hotelAdvice: 'Hotels add a service charge; QR 5-10 for porters is appreciated.',
     barAdvice: '10%.',
     taxiAdvice: 'Round up.',
     deliveryAdvice: 'QR 5-10.'
@@ -1374,6 +1513,8 @@ export const COUNTRY_TIPPING_DATABASE: Record<string, TippingCultureRule> = {
     cultureSummary: 'Tipping is not mandatory in Saudi Arabia but 10-15% is appreciated in sit-down restaurants, especially where no service charge is added.',
     restaurantAdvice: 'Leave 10-15% for good service if no service charge is listed.',
     counterCafeAdvice: 'Not expected.',
+    beautyAdvice: 'About 10% at salons and spas is appreciated.',
+    hotelAdvice: 'SR 5-10 per bag for porters; housekeeping a small tip per night.',
     barAdvice: 'Not applicable.',
     taxiAdvice: 'Round up.',
     deliveryAdvice: 'SR 5-10.'
@@ -1397,6 +1538,8 @@ export const COUNTRY_TIPPING_DATABASE: Record<string, TippingCultureRule> = {
     cultureSummary: 'Tipping in Oman is not expected but is appreciated. Hotels and upscale restaurants usually add a service charge.',
     restaurantAdvice: 'Leave 5-10% in restaurants without a service charge.',
     counterCafeAdvice: 'Not expected.',
+    beautyAdvice: '5-10% at spas is appreciated.',
+    hotelAdvice: 'Hotels add a service charge; 1 OMR for porters is appreciated.',
     barAdvice: 'Round up.',
     taxiAdvice: 'Not expected; fares are often agreed upfront.',
     deliveryAdvice: 'Small change.'
@@ -1420,6 +1563,8 @@ export const COUNTRY_TIPPING_DATABASE: Record<string, TippingCultureRule> = {
     cultureSummary: 'Many Bahraini restaurants and hotels add a service charge. Otherwise a 10% tip is customary.',
     restaurantAdvice: 'Leave about 10% if no service charge is on the bill.',
     counterCafeAdvice: 'Not expected.',
+    beautyAdvice: 'About 10% at salons and spas is appreciated.',
+    hotelAdvice: 'Hotels add a service charge; BD 1 for porters is appreciated.',
     barAdvice: '10%.',
     taxiAdvice: 'Round up.',
     deliveryAdvice: 'Small change.'
@@ -1443,10 +1588,13 @@ export const COUNTRY_TIPPING_DATABASE: Record<string, TippingCultureRule> = {
     cultureSummary: 'Tipping ("baksheesh") is part of everyday life in Egypt. Restaurants add a 12% service charge that goes to the business, so servers still expect 5-10% in cash.',
     restaurantAdvice: 'Leave 5-10% in cash for the server on top of the service charge.',
     counterCafeAdvice: 'Leave small change.',
+    beautyAdvice: 'About 10% at salons and spas, plus small tips for attendants.',
+    hotelAdvice: 'E£20-50 per bag for porters and E£50-100 per night for housekeeping.',
     barAdvice: 'Round up.',
     taxiAdvice: 'Round up the fare (agree on the price first).',
     deliveryAdvice: 'E£20-50.',
-    specialRules: ['Carry small notes: tips are expected for many small services, such as restroom attendants and porters.']
+    specialRules: ['Carry small notes: tips are expected for many small services, such as restroom attendants and porters.'],
+    serviceTiers: { taxi: { poor: 0, min: 5, avg: 10, high: 10 } }
   }
 };
 
@@ -1472,6 +1620,8 @@ export const DEFAULT_TIPPING_RULE: TippingCultureRule = {
   cultureSummary: 'Standard discretionary gratuity guidelines. Always check your receipt first to see if a service charge or tax was already included.',
   restaurantAdvice: '10-15% for good service if no service charge is present on the bill.',
   counterCafeAdvice: 'Round up or loose change.',
+  beautyAdvice: 'Check for a service charge first; otherwise around 10% at salons and spas.',
+  hotelAdvice: 'A small amount per bag for porters and per night for housekeeping, unless a service charge is added.',
   barAdvice: 'Round up or 10%.',
   taxiAdvice: 'Round up to nearest convenient note.',
   deliveryAdvice: '10% or modest cash tip.',
@@ -1488,4 +1638,20 @@ export function getTippingRuleForCountry(countryCode?: string | null): TippingCu
     poorLabel: rule.poorLabel || 'Poor Service',
     poorDescription: rule.poorDescription || 'Baseline for sub-par service.',
   };
+}
+
+/**
+ * Tip range for a service in a country. Explicit serviceTiers win; otherwise bars and salons follow
+ * restaurant norms where tipping is customary, and cafés/taxis (and everything in non-tipping
+ * cultures) get a lighter "round up" range capped at the restaurant average.
+ */
+export function getServiceTiers(countryCode: string | null | undefined, service: ServiceType): TierPercents {
+  const rule = getTippingRuleForCountry(countryCode);
+  const base: TierPercents = { poor: rule.poorPercent, min: rule.minPercent, avg: rule.avgPercent, high: rule.highPercent };
+  if (service === 'restaurant') return base;
+  const explicit = rule.serviceTiers?.[service];
+  if (explicit) return explicit;
+  if (rule.isTippingDiscouraged) return { poor: 0, min: 0, avg: 0, high: 0 };
+  if ((service === 'bar' || service === 'beauty') && rule.isTippingCustomary) return base;
+  return { poor: 0, min: 0, avg: Math.round(base.avg / 2), high: base.avg };
 }

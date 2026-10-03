@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { COUNTRY_TIPPING_DATABASE, TippingCultureRule, getTippingRuleForCountry } from '../data/tippingCulture';
-import { Search, Utensils, Wine, Car, Coffee, Lightbulb, Ban, ChevronRight, Frown, Meh, Smile, SmilePlus } from 'lucide-react';
+import { Search, Utensils, Wine, Car, Coffee, Sparkles, BedDouble, Lightbulb, Ban, ChevronRight, Frown, Meh, Smile, SmilePlus } from 'lucide-react';
 import type { LucideIcon } from 'lucide-react';
 import { Card, IconTile, TileColor } from './ui';
 import { LanguageCode, getTranslation } from '../data/translations';
@@ -146,6 +146,8 @@ export const CultureGuide: React.FC<{ currentLang?: LanguageCode }> = ({ current
         { icon: Wine, color: 'purple', label: t('bars'), text: selectedCountry.barAdvice },
         { icon: Car, color: 'blue', label: t('taxis'), text: selectedCountry.taxiAdvice },
         { icon: Coffee, color: 'yellow', label: t('cafes'), text: selectedCountry.counterCafeAdvice },
+        { icon: Sparkles, color: 'pink', label: t('beauty'), text: selectedCountry.beautyAdvice },
+        { icon: BedDouble, color: 'indigo', label: t('hotels'), text: selectedCountry.hotelAdvice },
       ]
     : [];
 
@@ -211,8 +213,8 @@ export const CultureGuide: React.FC<{ currentLang?: LanguageCode }> = ({ current
           </Card>
 
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-            {services.map((s) => (
-              <Card key={s.label} className="p-4">
+            {services.map((s, i) => (
+              <Card key={s.label} className={`p-4 ${i === services.length - 1 && services.length % 2 === 1 ? 'sm:col-span-2' : ''}`}>
                 <div className="flex items-center gap-2.5 mb-2">
                   <IconTile icon={s.icon} color={s.color} size="sm" />
                   <span className="text-[15px] font-semibold text-zinc-900 dark:text-white">{s.label}</span>

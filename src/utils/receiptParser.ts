@@ -1,5 +1,5 @@
 import { ReceiptItem, ReceiptSurcharge, ScannedReceiptData } from '../types';
-import { getTippingRuleForCountry } from '../data/tippingCulture';
+import { getTippingRuleForCountry, ServiceType } from '../data/tippingCulture';
 
 export interface ParsedReceiptTextResult {
   merchantName?: string;
@@ -15,7 +15,36 @@ export interface ParsedReceiptTextResult {
   serviceChargeDescription?: string;
   total: number;
   items: ReceiptItem[];
+  serviceType: ServiceType;
   rawText?: string;
+}
+
+// Keyword evidence for each kind of business; restaurant is the default when nothing stands out
+const SERVICE_PATTERNS: Record<Exclude<ServiceType, 'restaurant'>, RegExp> = {
+  beauty: /\b(salon|spa|massage|manicure|pedicure|mani|pedi|nails?|gel\s*polish|haircut|hair\s*cut|blow\s*dry|blowout|barber|stylist|facial|waxing|wax|lash(es)?|brows?|colou?r\s*treatment|highlights|keratin|thai\s*massage|reflexology|hammam)\b|美容|美髮|按摩|理髮|ネイル|マッサージ|미용|네일/gi,
+  taxi: /\b(taxi|cab|fare|meter(ed)?|pick\s*-?up|drop\s*-?off|trip\s*(fare|total)|ride|uber|lyft|grab|bolt|didi|mileage|km|miles|driver\s*id|medallion)\b|的士|計程車|出租车|タクシー|택시/gi,
+  cafe: /\b(caf[eé]|coffee|espresso|latte|cappuccino|americano|macchiato|mocha|flat\s*white|cold\s*brew|frappuccino|tea\s*latte|matcha|croissant|muffin|bagel|pastry|bakery|starbucks|dunkin|tim\s*hortons|costa)\b|咖啡|カフェ|커피/gi,
+  bar: /\b(bar|pub|tavern|brewery|taproom|lounge|saloon|cocktails?|pint|draft|draught|ipa|lager|stout|ale|shots?|happy\s*hour|bar\s*tab|tab\s*#)\b|酒吧|居酒屋|バー|술집/gi,
+};
+// Evidence that it is a sit-down meal, which outweighs a few drink or coffee lines
+const RESTAURANT_PATTERN = /\b(restaurant|ristorante|trattoria|bistro|brasserie|steakhouse|grill|kitchen|diner|eatery|entr[eé]e|appetizer|starter|main\s*course|dessert|table\s*#?\s*\d+|guests?|covers?|server|dine\s*-?in|steak|burger|pasta|pizza|salad|soup|sushi|ramen|dim\s*sum)\b|餐廳|餐厅|レストラン|식당/gi;
+
+export function detectServiceType(text: string): ServiceType {
+  if (!text) return 'restaurant';
+  const count = (re: RegExp) => (text.match(re) || []).length;
+  const beauty = count(SERVICE_PATTERNS.beauty);
+  const taxi = count(SERVICE_PATTERNS.taxi);
+  const cafe = count(SERVICE_PATTERNS.cafe);
+  const bar = count(SERVICE_PATTERNS.bar);
+  const meal = count(RESTAURANT_PATTERN);
+
+  // Salons and rides almost never share vocabulary with food, so a couple of hits is enough
+  if (beauty >= 2 && beauty > meal) return 'beauty';
+  if (taxi >= 2 && taxi > meal + cafe) return 'taxi';
+  // Restaurants often have a bar or serve coffee, so cafés and bars need to clearly outweigh meal evidence
+  if (cafe >= 2 && cafe > meal * 2 && cafe >= bar) return 'cafe';
+  if (bar >= 2 && bar > meal * 2) return 'bar';
+  return 'restaurant';
 }
 
 const CITY_PATTERNS: Array<{ regex: RegExp; city: string; state: string; countryCode: string }> = [
@@ -197,6 +226,7 @@ export function parseReceiptText(text: string): ParsedReceiptTextResult {
     serviceChargeDescription,
     total,
     items,
+    serviceType: detectServiceType(text),
     rawText: text,
   };
 }

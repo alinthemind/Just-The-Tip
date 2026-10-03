@@ -20,7 +20,13 @@ export function getSavedLocation(): UserLocation {
   try {
     const saved = localStorage.getItem(LOCATION_STORAGE_KEY);
     if (saved) {
-      return JSON.parse(saved);
+      const loc: UserLocation = JSON.parse(saved);
+      // Older versions saved a scanned receipt's location here; it is not the device's location
+      if (loc.source === 'receipt' || loc.source === 'photo-gps') {
+        localStorage.removeItem(LOCATION_STORAGE_KEY);
+        return DEFAULT_FALLBACK_LOCATION;
+      }
+      return loc;
     }
   } catch (e) {
     console.error('Failed to read saved location:', e);
@@ -112,18 +118,19 @@ export function canUseBrowserGps(): boolean {
   return typeof navigator !== 'undefined' && !!navigator.geolocation && (typeof window === 'undefined' || window.isSecureContext);
 }
 
-async function ipFallback(error: string): Promise<UserLocation> {
-  const ipLoc = await getIpLocation();
+async function ipFallback(error: string, ipPromise: Promise<UserLocation | null> = getIpLocation()): Promise<UserLocation> {
+  const ipLoc = await ipPromise;
   if (ipLoc) return { ...ipLoc, error };
   return { ...getSavedLocation(), isGps: false, error };
 }
 
 /**
- * Resolve the device location, falling back to IP location. Phones can take several seconds for a
- * first fix (plus time for the user to answer the permission prompt), so the IP fallback is used
- * while waiting and `onLateFix` delivers the GPS location if it arrives afterwards.
+ * Resolve the device location. The IP lookup starts at the same time as GPS and is passed to
+ * `onUpdate` as soon as it arrives, so the UI never sits on a stale location while the phone gets
+ * a fix (or waits for the permission prompt). A GPS fix that comes after the promise resolved is
+ * also delivered through `onUpdate`.
  */
-export function requestBrowserGps(onLateFix?: (loc: UserLocation) => void): Promise<UserLocation> {
+export function requestBrowserGps(onUpdate?: (loc: UserLocation) => void): Promise<UserLocation> {
   if (!canUseBrowserGps()) {
     return ipFallback(
       navigator.geolocation ? 'GPS needs a secure (https) connection' : 'Geolocation is not supported by your browser'
@@ -132,13 +139,19 @@ export function requestBrowserGps(onLateFix?: (loc: UserLocation) => void): Prom
 
   return new Promise((resolve) => {
     let isSettled = false;
+    let gotGps = false;
+
+    const ipPromise = getIpLocation();
+    ipPromise.then((ipLoc) => {
+      if (ipLoc && !isSettled && !gotGps) onUpdate?.(ipLoc);
+    });
 
     const startFallbackTimer = (ms: number) =>
       setTimeout(async () => {
         if (isSettled) return;
         isSettled = true;
         console.warn('Browser GPS is slow, using IP network location until it responds');
-        resolve(await ipFallback('GPS request timed out'));
+        resolve(await ipFallback('GPS request timed out', ipPromise));
       }, ms);
 
     // Give the user time to answer the permission prompt before falling back
@@ -156,11 +169,12 @@ export function requestBrowserGps(onLateFix?: (loc: UserLocation) => void): Prom
     navigator.geolocation.getCurrentPosition(
       async (pos) => {
         clearTimeout(timeoutId);
+        gotGps = true;
         const { latitude, longitude } = pos.coords;
         const loc = await reverseGeocodeCoords(latitude, longitude);
         loc.source = 'gps';
         if (isSettled) {
-          onLateFix?.(loc);
+          onUpdate?.(loc);
           return;
         }
         isSettled = true;
@@ -171,7 +185,7 @@ export function requestBrowserGps(onLateFix?: (loc: UserLocation) => void): Prom
         if (isSettled) return;
         isSettled = true;
         console.warn('Browser GPS denied or unavailable, trying IP location:', error.message);
-        resolve(await ipFallback(error.message || 'Location access denied or unavailable'));
+        resolve(await ipFallback(error.message || 'Location access denied or unavailable', ipPromise));
       },
       {
         // City-level accuracy is all tipping needs; Wi-Fi/cell positioning answers much faster than satellite GPS

@@ -101,6 +101,8 @@ export const TRANSLATIONS: Record<LanguageCode, Record<string, string>> = {
     copied: 'Copied',
     localCustoms: 'Local Customs',
     locApproximate: 'Approximate location',
+    beauty: 'Beauty & Personal Care',
+    hotels: 'Hotels',
   },
   fr: {
     appName: 'Just the Tip',
@@ -183,6 +185,8 @@ export const TRANSLATIONS: Record<LanguageCode, Record<string, string>> = {
     copied: 'Copié',
     localCustoms: 'Coutumes locales',
     locApproximate: 'Position approximative',
+    beauty: 'Beauté et soins',
+    hotels: 'Hôtels',
   },
   es: {
     appName: 'Just the Tip',
@@ -265,6 +269,8 @@ export const TRANSLATIONS: Record<LanguageCode, Record<string, string>> = {
     copied: 'Copiado',
     localCustoms: 'Costumbres locales',
     locApproximate: 'Ubicación aproximada',
+    beauty: 'Belleza y cuidado personal',
+    hotels: 'Hoteles',
   },
   de: {
     appName: 'Just the Tip',
@@ -347,6 +353,8 @@ export const TRANSLATIONS: Record<LanguageCode, Record<string, string>> = {
     copied: 'Kopiert',
     localCustoms: 'Lokale Bräuche',
     locApproximate: 'Ungefährer Standort',
+    beauty: 'Beauty & Körperpflege',
+    hotels: 'Hotels',
   },
   tlh: {
     appName: 'Just the Tip',
@@ -429,6 +437,8 @@ export const TRANSLATIONS: Record<LanguageCode, Record<string, string>> = {
     copied: 'lISlu’',
     localCustoms: 'ta’ lIy',
     locApproximate: 'Daq rap',
+    beauty: 'Dub',
+    hotels: 'mebpa’mey',
   },
   'zh-CN': {
     appName: 'Just the Tip',
@@ -511,6 +521,8 @@ export const TRANSLATIONS: Record<LanguageCode, Record<string, string>> = {
     copied: '已复制',
     localCustoms: '当地习俗',
     locApproximate: '大致位置',
+    beauty: '美容与个人护理',
+    hotels: '酒店',
   },
   'zh-TW': {
     appName: 'Just the Tip',
@@ -593,6 +605,8 @@ export const TRANSLATIONS: Record<LanguageCode, Record<string, string>> = {
     copied: '已複製',
     localCustoms: '當地習俗',
     locApproximate: '大致位置',
+    beauty: '美容與個人護理',
+    hotels: '飯店',
   },
   ja: {
     appName: 'Just the Tip',
@@ -675,6 +689,8 @@ export const TRANSLATIONS: Record<LanguageCode, Record<string, string>> = {
     copied: 'コピー済み',
     localCustoms: '現地の習慣',
     locApproximate: 'おおよその位置',
+    beauty: '美容・パーソナルケア',
+    hotels: 'ホテル',
   },
   ko: {
     appName: 'Just the Tip',
@@ -757,6 +773,8 @@ export const TRANSLATIONS: Record<LanguageCode, Record<string, string>> = {
     copied: '복사됨',
     localCustoms: '현지 관습',
     locApproximate: '대략적인 위치',
+    beauty: '뷰티 및 퍼스널 케어',
+    hotels: '호텔',
   },
 };
 

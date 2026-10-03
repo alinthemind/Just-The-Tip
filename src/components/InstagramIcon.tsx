@@ -31,85 +31,46 @@ export const InstagramIcon: React.FC<InstagramIconProps> = ({ className = 'w-6 h
 };
 
 /**
- * Mushroom with Tip Logo
- * A stylish, modern mushroom icon featuring a distinct gradient cap,
- * classic mushroom spots, sturdy stem, and an illuminated crown tip.
+ * Just the Tip mark: a sleek white mushroom on Instagram's signature glow, with a sparkle at the tip.
+ * Cheeky by shape alone; no detail beyond the silhouette, a gloss line and the sparkle.
  */
-export const MushroomTipLogo: React.FC<{ size?: number; className?: string }> = ({
-  size = 32,
-  className = '',
-}) => {
+export const MushroomTipLogo: React.FC<{ size?: number; className?: string }> = ({ size = 36, className = '' }) => {
+  const id = React.useId().replace(/:/g, '');
   return (
-    <div
-      className={`relative inline-flex items-center justify-center p-[2px] rounded-[14px] ig-gradient shadow-md shadow-pink-500/25 active:scale-95 transition-transform ${className}`}
-      style={{ width: size + 8, height: size + 8 }}
-      title="Just the Tip"
+    <svg
+      width={size}
+      height={size}
+      viewBox="0 0 64 64"
+      xmlns="http://www.w3.org/2000/svg"
+      className={`flex-shrink-0 drop-shadow-[0_4px_10px_rgba(214,36,159,0.35)] ${className}`}
+      role="img"
+      aria-label="Just the Tip"
     >
-      <div className="w-full h-full bg-white rounded-[12px] flex items-center justify-center relative overflow-hidden">
-        <svg
-          width={size}
-          height={size}
-          viewBox="0 0 32 32"
-          fill="none"
-          xmlns="http://www.w3.org/2000/svg"
-          className="relative z-10 drop-shadow-xs"
-        >
-          <defs>
-            <linearGradient id="mushroom-cap-grad" x1="2" y1="2" x2="30" y2="28" gradientUnits="userSpaceOnUse">
-              <stop stopColor="#f09433" />
-              <stop offset="0.25" stopColor="#e6683c" />
-              <stop offset="0.5" stopColor="#dc2743" />
-              <stop offset="0.75" stopColor="#cc2366" />
-              <stop offset="1" stopColor="#bc1888" />
-            </linearGradient>
-            <linearGradient id="mushroom-stem-grad" x1="12" y1="18" x2="20" y2="29" gradientUnits="userSpaceOnUse">
-              <stop stopColor="#ffffff" />
-              <stop offset="1" stopColor="#f4f4f5" />
-            </linearGradient>
-            <linearGradient id="tip-sparkle-grad" x1="14" y1="0" x2="18" y2="6" gradientUnits="userSpaceOnUse">
-              <stop stopColor="#fef08a" />
-              <stop offset="1" stopColor="#f59e0b" />
-            </linearGradient>
-          </defs>
-
-          {/* Mushroom Stem */}
-          <path
-            d="M 12 17.5 C 11.5 22, 12 28.5, 16 28.5 C 20 28.5, 20.5 22, 20 17.5 Z"
-            fill="url(#mushroom-stem-grad)"
-            stroke="#e4e4e7"
-            strokeWidth="1.2"
-          />
-
-          {/* Stem inner detail curve */}
-          <path
-            d="M 14.5 20 C 14.2 23, 14.5 26, 16 26.5 C 17.5 26, 17.8 23, 17.5 20"
-            stroke="#d4d4d8"
-            strokeWidth="0.8"
-            strokeLinecap="round"
-          />
-
-          {/* Mushroom Cap with distinct elevated tip at crown (x=16, y=2.5) */}
-          <path
-            d="M 4.5 17.5 C 4.5 9.5, 10 3.2, 16 2.2 C 22 3.2, 27.5 9.5, 27.5 17.5 C 27.5 19.2, 25 19.8, 22.5 19.2 C 19 18.3, 13 18.3, 9.5 19.2 C 7 19.8, 4.5 19.2, 4.5 17.5 Z"
-            fill="url(#mushroom-cap-grad)"
-            stroke="rgba(0,0,0,0.06)"
-            strokeWidth="0.8"
-          />
-
-          {/* Mushroom Cap Polka Dots */}
-          <circle cx="16" cy="11.5" r="2.2" fill="#ffffff" fillOpacity="0.95" />
-          <circle cx="10" cy="14" r="1.6" fill="#ffffff" fillOpacity="0.9" />
-          <circle cx="22" cy="14" r="1.6" fill="#ffffff" fillOpacity="0.9" />
-          <circle cx="16" cy="6" r="1.1" fill="#ffffff" fillOpacity="0.85" />
-
-          {/* Prominent Tip Glint / Sparkle at the apex of the mushroom */}
-          <path
-            d="M 16 0.2 L 16.9 2.2 L 19 3.1 L 16.9 4 L 16 6 L 15.1 4 L 13 3.1 L 15.1 2.2 Z"
-            fill="url(#tip-sparkle-grad)"
-          />
-        </svg>
-      </div>
-    </div>
+      <defs>
+        <radialGradient id={`${id}-glow`} cx="0.3" cy="1.07" r="1.5">
+          <stop offset="0" stopColor="#fdf497" />
+          <stop offset="0.05" stopColor="#fdf497" />
+          <stop offset="0.45" stopColor="#fd5949" />
+          <stop offset="0.6" stopColor="#d6249f" />
+          <stop offset="0.9" stopColor="#285aeb" />
+        </radialGradient>
+        <linearGradient id={`${id}-stem`} x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0" stopColor="#ffffff" stopOpacity="0.82" />
+          <stop offset="1" stopColor="#ffffff" stopOpacity="0.96" />
+        </linearGradient>
+      </defs>
+      <rect width="64" height="64" rx="15" fill={`url(#${id}-glow)`} />
+      {/* stem */}
+      <path d="M25 36 C24.4 43 23.8 49.5 25.2 53.6 C26.6 57.4 37.4 57.4 38.8 53.6 C40.2 49.5 39.6 43 39 36 Z" fill={`url(#${id}-stem)`} />
+      {/* cap */}
+      <path d="M10.5 33.5 C10.5 19.5 20 10.5 32 10.5 C44 10.5 53.5 19.5 53.5 33.5 C53.5 36.6 50.6 38 46.8 37.4 C39.5 36.3 24.5 36.3 17.2 37.4 C13.4 38 10.5 36.6 10.5 33.5 Z" fill="#ffffff" />
+      {/* soft shadow where cap meets stem */}
+      <path d="M18 37.2 C25 36.2 39 36.2 46 37.2" fill="none" stroke="#d6249f" strokeOpacity="0.22" strokeWidth="1.4" strokeLinecap="round" />
+      {/* gloss */}
+      <path d="M17.5 26 C19.5 19.5 24.5 15.6 30.5 15" fill="none" stroke="#fd5949" strokeOpacity="0.28" strokeWidth="2.6" strokeLinecap="round" />
+      {/* sparkle at the tip */}
+      <path d="M46.5 4.5 L47.9 8.6 L52 10 L47.9 11.4 L46.5 15.5 L45.1 11.4 L41 10 L45.1 8.6 Z" fill="#ffffff" />
+    </svg>
   );
 };
 
