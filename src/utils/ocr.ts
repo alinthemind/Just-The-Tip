@@ -1,13 +1,80 @@
 import { createWorker } from 'tesseract.js';
-import { parseReceiptText, ParsedReceiptTextResult } from './receiptParser';
+import { parseReceiptText, ParsedReceiptTextResult, receiptTextScore } from './receiptParser';
 
 let workerPromise: Promise<any> | null = null;
+// Languages the cached worker is currently loaded with
+let workerLangs = 'eng';
+
+/** Hints for which non-Latin script a receipt is likely in */
+export interface OcrHints {
+  appLang?: string;
+  countryCode?: string;
+}
+
+// Tesseract models for the scripts English OCR can't read
+const LANG_FOR_APP: Record<string, string> = { 'zh-CN': 'chi_sim', 'zh-TW': 'chi_tra', ja: 'jpn', ko: 'kor', th: 'tha' };
+const LANG_FOR_COUNTRY: Record<string, string> = {
+  CN: 'chi_sim', SG: 'chi_sim', HK: 'chi_tra', MO: 'chi_tra', TW: 'chi_tra', JP: 'jpn', KR: 'kor', TH: 'tha',
+};
+const SCRIPT_LANGS = ['chi_sim', 'chi_tra', 'jpn', 'kor', 'tha'];
+// Scripts sharing Han characters, which can stand in for each other on a first read
+const CJK_FAMILY = ['chi_sim', 'chi_tra', 'jpn'];
+
+/** Script languages to try, most likely first (app language, then where the phone is, then the rest) */
+function candidateLangs(hints: OcrHints): string[] {
+  const ordered = [LANG_FOR_APP[hints.appLang || ''], LANG_FOR_COUNTRY[hints.countryCode || ''], ...SCRIPT_LANGS];
+  return [...new Set(ordered.filter(Boolean))];
+}
+
+// A score this high means the text clearly reads as a receipt (several labelled amounts)
+const GOOD_ENOUGH_SCORE = 4;
+// Stop trying other scripts after this long. Generous because a script's model (a few MB) is downloaded
+// the first time it is used; after that each extra pass takes only a few seconds.
+const OCR_TIME_BUDGET_MS = 45000;
+const PASS_TIMEOUT_MS = 15000;
+
+/**
+ * Warm the OCR engine with the model for where the phone is (e.g. Chinese in China), so the first scan
+ * there doesn't wait for a download. Runs in the background; failures are ignored.
+ */
+let prefetching: Promise<void> | null = null;
+
+export function prefetchOcrModels(hints: OcrHints): void {
+  const lang = LANG_FOR_COUNTRY[hints.countryCode || ''] || LANG_FOR_APP[hints.appLang || ''];
+  if (!lang || prefetching) return;
+  prefetching = getOcrWorker()
+    .then(async (worker) => {
+      if (!worker || workerLangs !== 'eng') return;
+      // Loading the model caches it; switch back so the next scan starts with the fast English pass
+      workerLangs = `${lang}+eng`;
+      await worker.reinitialize([lang, 'eng']);
+      await worker.reinitialize(['eng']);
+      workerLangs = 'eng';
+    })
+    .catch(() => {})
+    .finally(() => {
+      prefetching = null;
+    });
+}
+
+async function recognizeWith(worker: any, langs: string, canvas: HTMLCanvasElement): Promise<{ text: string; confidence: number }> {
+  if (workerLangs !== langs) {
+    await worker.reinitialize(langs.split('+'));
+    workerLangs = langs;
+  }
+  const ret: any = await Promise.race([
+    worker.recognize(canvas),
+    new Promise<null>((_, reject) => setTimeout(() => reject(new Error('OCR recognition timeout')), PASS_TIMEOUT_MS)),
+  ]);
+  return { text: ret?.data?.text || '', confidence: ret?.data?.confidence || 0 };
+}
 
 async function getOcrWorker() {
   if (!workerPromise) {
     workerPromise = (async () => {
       try {
         const worker = await createWorker('eng');
+        workerLangs = 'eng';
         return worker;
       } catch (err) {
         console.warn('Failed to initialize Tesseract OCR worker:', err);
@@ -85,18 +152,15 @@ function normalizeImageToCanvas(
       img.onload = () => {
         try {
           const canvas = document.createElement('canvas');
-          // Scale down very large camera images to a max dimension of 2000px for fast, reliable OCR
+          // Only shrink very large camera photos (for speed). Tesseract does its own cleanup: in testing,
+          // enlarging, grayscaling or contrast-stretching real receipt photos made recognition worse.
           let width = img.naturalWidth || img.width;
           let height = img.naturalHeight || img.height;
-          const maxDim = 2000;
+          const maxDim = 2200;
           if (width > maxDim || height > maxDim) {
-            if (width > height) {
-              height = Math.round((height * maxDim) / width);
-              width = maxDim;
-            } else {
-              width = Math.round((width * maxDim) / height);
-              height = maxDim;
-            }
+            const scale = maxDim / Math.max(width, height);
+            width = Math.round(width * scale);
+            height = Math.round(height * scale);
           }
 
           canvas.width = Math.max(1, width);
@@ -107,6 +171,7 @@ function normalizeImageToCanvas(
             return resolve(null);
           }
 
+          ctx.imageSmoothingQuality = 'high';
           ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
           cleanup();
           resolve(canvas);
@@ -136,7 +201,8 @@ function normalizeImageToCanvas(
 export async function runClientOcr(
   imageSource: string | File | Blob,
   /** `status` is a translation key (stepPreparing, stepRecognizing, ...) */
-  onProgress?: (progress: number, status: string) => void
+  onProgress?: (progress: number, status: string) => void,
+  hints: OcrHints = {}
 ): Promise<ParsedReceiptTextResult> {
   try {
     // 1. If image is an SVG (e.g., demo test receipts), parse text directly without worker
@@ -158,22 +224,52 @@ export async function runClientOcr(
     }
 
     if (onProgress) onProgress(40, 'stepOcrInit');
+    // Don't switch models underneath a background prefetch
+    if (prefetching) await Promise.race([prefetching, new Promise((r) => setTimeout(r, 20000))]);
     const worker = await getOcrWorker();
     if (!worker) {
       return parseReceiptText('');
     }
 
-    if (onProgress) onProgress(65, 'stepRecognizing');
+    if (onProgress) onProgress(60, 'stepRecognizing');
+    const started = Date.now();
 
-    // Run recognition with a 15-second safety timeout so it never hangs
-    const ret: any = await Promise.race([
-      worker.recognize(canvas),
-      new Promise<null>((_, reject) =>
-        setTimeout(() => reject(new Error('OCR recognition timeout')), 15000)
-      ),
-    ]);
+    // Pass 1: English, which also reads Latin-script receipts (Europe, the Americas...)
+    let best = await recognizeWith(worker, 'eng', canvas);
+    let bestScore = receiptTextScore(best.text);
+    // A confident English read with a labelled amount is a Latin-script receipt: no other script needed.
+    // (English OCR of Asian scripts scores ~25-45% confidence; real Latin receipts ~80%+.)
+    const englishIsRight = bestScore >= 2 && best.confidence >= 70;
 
-    const text = ret?.data?.text || '';
+    // Other scripts only if English didn't produce a convincing receipt. Confidence alone can't tell
+    // scripts apart, so each attempt is judged by how many labelled amounts it finds.
+    if (bestScore < GOOD_ENOUGH_SCORE && !englishIsRight) {
+      const hinted = Boolean(LANG_FOR_APP[hints.appLang || ''] || LANG_FOR_COUNTRY[hints.countryCode || '']);
+      let winner = 'eng';
+      for (const lang of candidateLangs(hints)) {
+        if (Date.now() - started > OCR_TIME_BUDGET_MS) break;
+        // Without a hint, a Chinese model also reads Japanese kanji and the other Chinese variant well
+        // enough to win, while mangling kana and the variant's characters. So once one CJK model is
+        // good enough, still compare its siblings before stopping.
+        const sibling = !hinted && CJK_FAMILY.includes(winner) && CJK_FAMILY.includes(lang);
+        if (bestScore >= GOOD_ENOUGH_SCORE && !sibling) break;
+        if (onProgress) onProgress(75, 'stepOtherLanguage');
+        try {
+          const attempt = await recognizeWith(worker, `${lang}+eng`, canvas);
+          const score = receiptTextScore(attempt.text);
+          // On a tie, Japanese wins if it found real kana (which the Chinese models turn into noise)
+          const kanaTieBreak = lang === 'jpn' && score === bestScore && (attempt.text.match(/[\u3040-\u30ff]/g) || []).length >= 6;
+          if (score > bestScore || kanaTieBreak) {
+            best = attempt;
+            bestScore = score;
+            winner = lang;
+          }
+        } catch (err) {
+          console.warn(`OCR with ${lang} failed:`, err);
+        }
+      }
+    }
+    const text = best.text;
 
     if (onProgress) onProgress(90, 'stepExtracting');
     return parseReceiptText(text);
@@ -187,6 +283,7 @@ export async function runClientOcr(
         } catch (_) {}
       }).catch(() => {});
       workerPromise = null;
+      workerLangs = 'eng';
     }
     return parseReceiptText('');
   }

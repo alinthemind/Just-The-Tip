@@ -120,6 +120,8 @@ export const TRANSLATIONS: Record<LanguageCode, Record<string, string>> = {
     regionEurope: 'Europe',
     regionAsia: 'Asia Pacific',
     regionMiddleEast: 'Middle East',
+    stepOtherLanguage: 'Reading in another language…',
+    enterAmounts: 'Couldn’t read the amounts on this receipt. Please enter them below.',
   },
   fr: {
     appName: 'Just the Tip',
@@ -216,6 +218,8 @@ export const TRANSLATIONS: Record<LanguageCode, Record<string, string>> = {
     regionEurope: 'Europe',
     regionAsia: 'Asie-Pacifique',
     regionMiddleEast: 'Moyen-Orient',
+    stepOtherLanguage: 'Lecture dans une autre langue…',
+    enterAmounts: 'Impossible de lire les montants de ce ticket. Saisissez-les ci-dessous.',
   },
   es: {
     appName: 'Just the Tip',
@@ -312,6 +316,8 @@ export const TRANSLATIONS: Record<LanguageCode, Record<string, string>> = {
     regionEurope: 'Europa',
     regionAsia: 'Asia-Pacífico',
     regionMiddleEast: 'Oriente Medio',
+    stepOtherLanguage: 'Leyendo en otro idioma…',
+    enterAmounts: 'No se pudieron leer los importes de este recibo. Introdúcelos abajo.',
   },
   de: {
     appName: 'Just the Tip',
@@ -408,6 +414,8 @@ export const TRANSLATIONS: Record<LanguageCode, Record<string, string>> = {
     regionEurope: 'Europa',
     regionAsia: 'Asien-Pazifik',
     regionMiddleEast: 'Naher Osten',
+    stepOtherLanguage: 'Lese in einer anderen Sprache…',
+    enterAmounts: 'Die Beträge auf diesem Beleg konnten nicht gelesen werden. Bitte unten eingeben.',
   },
   tlh: {
     appName: 'Just the Tip',
@@ -504,6 +512,8 @@ export const TRANSLATIONS: Record<LanguageCode, Record<string, string>> = {
     regionEurope: 'Europa',
     regionAsia: 'Asia',
     regionMiddleEast: 'Middle East',
+    stepOtherLanguage: 'latlh Hol laD…',
+    enterAmounts: 'nav mI’ laDlaHbe’. bIng yIghItlh.',
   },
   'zh-CN': {
     appName: 'Just the Tip',
@@ -600,6 +610,8 @@ export const TRANSLATIONS: Record<LanguageCode, Record<string, string>> = {
     regionEurope: '欧洲',
     regionAsia: '亚太',
     regionMiddleEast: '中东',
+    stepOtherLanguage: '正在尝试其他语言…',
+    enterAmounts: '无法读取这张收据上的金额，请在下方输入。',
   },
   'zh-TW': {
     appName: 'Just the Tip',
@@ -696,6 +708,8 @@ export const TRANSLATIONS: Record<LanguageCode, Record<string, string>> = {
     regionEurope: '歐洲',
     regionAsia: '亞太',
     regionMiddleEast: '中東',
+    stepOtherLanguage: '正在嘗試其他語言…',
+    enterAmounts: '無法讀取這張收據上的金額，請在下方輸入。',
   },
   ja: {
     appName: 'Just the Tip',
@@ -792,6 +806,8 @@ export const TRANSLATIONS: Record<LanguageCode, Record<string, string>> = {
     regionEurope: 'ヨーロッパ',
     regionAsia: 'アジア太平洋',
     regionMiddleEast: '中東',
+    stepOtherLanguage: '別の言語で読み取り中…',
+    enterAmounts: 'このレシートの金額を読み取れませんでした。下に入力してください。',
   },
   ko: {
     appName: 'Just the Tip',
@@ -888,6 +904,8 @@ export const TRANSLATIONS: Record<LanguageCode, Record<string, string>> = {
     regionEurope: '유럽',
     regionAsia: '아시아 태평양',
     regionMiddleEast: '중동',
+    stepOtherLanguage: '다른 언어로 읽는 중…',
+    enterAmounts: '이 영수증의 금액을 읽을 수 없습니다. 아래에 입력하세요.',
   },
   th: {
     appName: 'Just the Tip',
@@ -984,6 +1002,8 @@ export const TRANSLATIONS: Record<LanguageCode, Record<string, string>> = {
     regionEurope: 'ยุโรป',
     regionAsia: 'เอเชียแปซิฟิก',
     regionMiddleEast: 'ตะวันออกกลาง',
+    stepOtherLanguage: 'กำลังอ่านด้วยภาษาอื่น…',
+    enterAmounts: 'อ่านจำนวนเงินในใบเสร็จนี้ไม่ได้ กรุณากรอกด้านล่าง',
   },
   it: {
     appName: 'Just the Tip',
@@ -1080,6 +1100,8 @@ export const TRANSLATIONS: Record<LanguageCode, Record<string, string>> = {
     regionEurope: 'Europa',
     regionAsia: 'Asia-Pacifico',
     regionMiddleEast: 'Medio Oriente',
+    stepOtherLanguage: 'Lettura in un’altra lingua…',
+    enterAmounts: 'Impossibile leggere gli importi dello scontrino. Inseriscili qui sotto.',
   },
   pt: {
     appName: 'Just the Tip',
@@ -1176,6 +1198,8 @@ export const TRANSLATIONS: Record<LanguageCode, Record<string, string>> = {
     regionEurope: 'Europa',
     regionAsia: 'Ásia-Pacífico',
     regionMiddleEast: 'Médio Oriente',
+    stepOtherLanguage: 'A ler noutro idioma…',
+    enterAmounts: 'Não foi possível ler os valores deste recibo. Introduza-os abaixo.',
   },
   la: {
     appName: 'Just the Tip',
@@ -1272,6 +1296,8 @@ export const TRANSLATIONS: Record<LanguageCode, Record<string, string>> = {
     regionEurope: 'Europa',
     regionAsia: 'Asia et Oceanus',
     regionMiddleEast: 'Oriens Medius',
+    stepOtherLanguage: 'Alia lingua legitur…',
+    enterAmounts: 'Summae huius syngraphae legi non potuerunt. Infra inscribe.',
   },
   vul: {
     appName: 'Just the Tip',
@@ -1368,6 +1394,8 @@ export const TRANSLATIONS: Record<LanguageCode, Record<string, string>> = {
     regionEurope: 'Europe',
     regionAsia: 'Asia Pacific',
     regionMiddleEast: 'Middle East',
+    stepOtherLanguage: 'Analyzing alternate language…',
+    enterAmounts: 'Values on this record could not be analyzed. Enter them below.',
   },
 };
 

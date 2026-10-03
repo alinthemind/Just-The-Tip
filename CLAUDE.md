@@ -33,7 +33,7 @@ Copy `.env.example` to `.env` and set `GEMINI_API_KEY`. The app still runs witho
 
 **Client scan pipeline (`src/App.tsx` → `handleScanReceipt`):**
 1. Read EXIF GPS from the photo if present (`utils/exif.ts`) and reverse-geocode it.
-2. Run in-browser OCR with Tesseract (`utils/ocr.ts`, which has a 15s timeout; SVG samples are parsed as text directly), then regex-parse the text into merchant, city, subtotal, and surcharges (`utils/receiptParser.ts`).
+2. Run in-browser OCR with Tesseract (`utils/ocr.ts`; SVG samples are parsed as text directly). English runs first; if it isn't a confident receipt read, script models (`chi_sim`, `chi_tra`, `jpn`, `kor`, `tha`) are tried in hint order (app language, then phone country) within a 45s budget, each attempt judged by `receiptTextScore` (labelled amounts found), since Tesseract confidence can't tell scripts apart. Don't add image preprocessing: grayscale/contrast/upscaling measurably hurt real photos. Then `utils/receiptParser.ts` parses merchant, location (city, currency, writing system), amounts and service type (restaurant/bar/cafe/taxi/beauty/hotel) in many languages, and cross-checks the numbers: the most frequent total wins, subtotal + tax + service + fees must add up to it, and a printed tax rate settles which amount was misread.
 3. POST everything to `/api/scan-receipt` as `clientOcr` context.
 4. Decide the final location in this priority order: sample receipt info > location printed on the receipt (Gemini, then client OCR) > photo EXIF GPS > the phone's live GPS.
 
@@ -42,5 +42,7 @@ Copy `.env.example` to `.env` and set `GEMINI_API_KEY`. The app still runs witho
 **State and persistence.** There is no router or state library; `App.tsx` holds all state and switches tabs (`scanner` / calculator / `guide`). `localStorage` keys use the `globaltip_` prefix (theme, language, and location in `utils/geolocation.ts`). Scan history is purged on mount on purpose, for privacy, so don't add history persistence.
 
 **i18n.** All strings live in `src/data/translations.ts` (`TRANSLATIONS[lang][key]`); `src/i18n/translations.ts` only re-exports them. Add new keys to every language, including the fictional `tlh` (Klingon) and `vul` (Vulcan). To add a language, add it to the `LanguageCode` type, `SUPPORTED_LANGUAGES` (the saved-language restore in `App.tsx` checks this list) and `TRANSLATIONS`.
+
+**Etiquette translations.** The country advice in `tippingCulture.ts` is English; `src/data/etiquette/<lang>.json` maps each exact English sentence to its translation (lazy-loaded per language via `useEtiquette`). Editing an English sentence makes it fall back to English until its translations are updated in every JSON file. Klingon and Vulcan have no file and show English.
 
 **Styling.** Tailwind v4 (via the `@tailwindcss/vite` plugin, no config file). Dark mode is class-based (`@custom-variant dark` in `src/index.css`), and dark is the default. Animations use `motion`; icons use `lucide-react`. The `@/` import alias points at the repo root.

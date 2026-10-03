@@ -1,5 +1,5 @@
-export type ServiceType = 'restaurant' | 'bar' | 'cafe' | 'taxi' | 'beauty';
-export const SERVICE_TYPES: ServiceType[] = ['restaurant', 'bar', 'cafe', 'taxi', 'beauty'];
+export type ServiceType = 'restaurant' | 'bar' | 'cafe' | 'taxi' | 'beauty' | 'hotel';
+export const SERVICE_TYPES: ServiceType[] = ['restaurant', 'bar', 'cafe', 'taxi', 'beauty', 'hotel'];
 
 export interface TierPercents {
   poor: number;
@@ -1649,9 +1649,23 @@ export function getServiceTiers(countryCode: string | null | undefined, service:
   const rule = getTippingRuleForCountry(countryCode);
   const base: TierPercents = { poor: rule.poorPercent, min: rule.minPercent, avg: rule.avgPercent, high: rule.highPercent };
   if (service === 'restaurant') return base;
+  // Hotel staff are tipped flat amounts (per bag, per night), never a percentage of the room bill
+  if (service === 'hotel') return { poor: 0, min: 0, avg: 0, high: 0 };
   const explicit = rule.serviceTiers?.[service];
   if (explicit) return explicit;
   if (rule.isTippingDiscouraged) return { poor: 0, min: 0, avg: 0, high: 0 };
   if ((service === 'bar' || service === 'beauty') && rule.isTippingCustomary) return base;
   return { poor: 0, min: 0, avg: Math.round(base.avg / 2), high: base.avg };
+}
+
+/** The country's advice sentence for a kind of service */
+export function serviceAdvice(rule: TippingCultureRule, service: ServiceType): string {
+  switch (service) {
+    case 'bar': return rule.barAdvice;
+    case 'cafe': return rule.counterCafeAdvice;
+    case 'taxi': return rule.taxiAdvice;
+    case 'beauty': return rule.beautyAdvice;
+    case 'hotel': return rule.hotelAdvice;
+    default: return rule.restaurantAdvice;
+  }
 }

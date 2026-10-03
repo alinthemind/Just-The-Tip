@@ -48,6 +48,8 @@ export const ReceiptScanner: React.FC<ReceiptScannerProps> = ({
     const reader = new FileReader();
     reader.onerror = (err) => {
       console.warn('FileReader error:', err);
+      // The photo couldn't be opened (e.g. iCloud photo not downloaded): say so instead of doing nothing
+      alert(t('errGeneric'));
     };
     reader.onload = (e) => {
       const result = e.target?.result as string;

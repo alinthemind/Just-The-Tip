@@ -23,14 +23,16 @@ import {
   Coffee,
   Car,
   Sparkles,
+  BedDouble,
 } from 'lucide-react';
 import type { LucideIcon } from 'lucide-react';
 import { LanguageCode, getTranslation } from '../data/translations';
 import { Card, Chip, IconTile, SectionCaption, Segmented } from './ui';
-import { getServiceTiers, ServiceType } from '../data/tippingCulture';
+import { getServiceTiers, getTippingRuleForCountry, serviceAdvice, ServiceType } from '../data/tippingCulture';
 import { TipPanel, TierKey } from './TipPanel';
 import { formatMoney, RoundMode } from '../utils/tipMath';
 import { localizedCountryName } from '../utils/countryName';
+import { useEtiquette } from '../data/etiquette';
 
 interface TipResultsProps {
   receipt: ScannedReceiptData;
@@ -45,6 +47,7 @@ export const SERVICE_OPTIONS: Array<{ value: ServiceType; icon: LucideIcon; labe
   { value: 'cafe', icon: Coffee, labelKey: 'cafes' },
   { value: 'taxi', icon: Car, labelKey: 'taxis' },
   { value: 'beauty', icon: Sparkles, labelKey: 'beauty' },
+  { value: 'hotel', icon: BedDouble, labelKey: 'hotels' },
 ];
 
 const SOURCE_ICON: Record<NonNullable<ScannedReceiptData['locationSource']>, LucideIcon> = {
@@ -61,6 +64,8 @@ export const TipResults: React.FC<TipResultsProps> = ({
   currentLang = 'en',
 }) => {
   const t = (key: string) => getTranslation(currentLang, key);
+  // Etiquette notes built from the country data translate; free-form AI notes stay as written
+  const tr = useEtiquette(currentLang);
   const { tippingCulture } = receipt;
   const detectedService: ServiceType = receipt.serviceType || 'restaurant';
   const [serviceType, setServiceType] = useState<ServiceType>(detectedService);
@@ -68,8 +73,9 @@ export const TipResults: React.FC<TipResultsProps> = ({
   const [customPercent, setCustomPercent] = useState<number>(tippingCulture.average.percent);
   const [roundMode, setRoundMode] = useState<RoundMode>('none');
   const [showCustoms, setShowCustoms] = useState(false);
-  const [showItemDetails, setShowItemDetails] = useState(false);
-  const [isEditingReceipt, setIsEditingReceipt] = useState(false);
+  // Unreadable receipts open straight into the edit form so the user can type the amounts
+  const [showItemDetails, setShowItemDetails] = useState(Boolean(receipt.needsReview));
+  const [isEditingReceipt, setIsEditingReceipt] = useState(Boolean(receipt.needsReview));
 
   // Editable fields
   const [editMerchant, setEditMerchant] = useState(receipt.merchantName);
@@ -174,6 +180,13 @@ export const TipResults: React.FC<TipResultsProps> = ({
         </div>
       </div>
 
+      {receipt.needsReview && (
+        <div className="flex items-center gap-3 px-4 py-3 rounded-[16px] bg-ig-orange/12 text-[15px] text-[#c4501a] dark:text-ig-orange">
+          <Pencil className="w-5 h-5 flex-shrink-0" />
+          <p className="flex-1">{t('enterAmounts')}</p>
+        </div>
+      )}
+
       {/* Status chips: what is and isn't tipped on */}
       <div className="flex flex-wrap gap-2 px-1">
         <Chip icon={ShieldCheck} tone="pink" title={t('excludesTax')}>
@@ -220,6 +233,10 @@ export const TipResults: React.FC<TipResultsProps> = ({
           onChange={handleServiceChange}
           options={SERVICE_OPTIONS.map((o) => ({ value: o.value, icon: o.icon, title: t(o.labelKey) }))}
         />
+        {/* How tipping works for this service here (e.g. hotels: flat amounts per bag/night, not a %) */}
+        <p className="mt-2 px-4 text-[13px] leading-snug text-zinc-500 dark:text-zinc-400">
+          {tr(serviceAdvice(getTippingRuleForCountry(receipt.detectedCountry?.code), serviceType))}
+        </p>
       </div>
 
       <TipPanel
@@ -268,14 +285,14 @@ export const TipResults: React.FC<TipResultsProps> = ({
             {(tippingCulture.localEtiquetteNotes || []).filter(Boolean).map((note, idx) => (
               <div key={idx} className="flex items-start gap-2.5 text-[15px] leading-snug text-zinc-700 dark:text-zinc-300">
                 <span className="w-1.5 h-1.5 rounded-full bg-accent mt-2 flex-shrink-0" />
-                <span>{note}</span>
+                <span>{tr(note)}</span>
               </div>
             ))}
             {tippingCulture.paymentAdvice && (
               <div className="flex items-start gap-2.5 text-[15px] leading-snug text-zinc-700 dark:text-zinc-300">
                 <Car className="w-4 h-4 text-zinc-400 mt-0.5 flex-shrink-0" />
                 <span>
-                  <span className="font-semibold">{t('taxis')}:</span> {tippingCulture.paymentAdvice.replace(/^Taxis:\s*/, '')}
+                  <span className="font-semibold">{t('taxis')}:</span> {tr(tippingCulture.paymentAdvice.replace(/^Taxis:\s*/, ''))}
                 </span>
               </div>
             )}

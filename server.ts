@@ -62,17 +62,14 @@ function buildFallbackReceiptData(
   let detectedState = '';
   // Whether the city came from the receipt itself (OCR, sample, or text match) rather than device GPS
   let cityFromReceipt = false;
-  let preTaxSubtotal = 48.0;
-  let tax = 4.25;
+  // Start empty: when nothing can be read, the app asks for the amounts rather than showing invented ones
+  let preTaxSubtotal = 0;
+  let tax = 0;
   let surcharges: Array<{ name: string; amount: number; isHealthOrMandate?: boolean }> = [];
   let serviceCharge = 0;
   let serviceChargeIncluded = false;
   let serviceChargeDesc = '';
-  let items = [
-    { name: 'House Special Entree', qty: 2, price: 34.0 },
-    { name: 'Craft Beverage / Wine', qty: 2, price: 10.0 },
-    { name: 'Side / Dessert', qty: 1, price: 4.0 },
-  ];
+  let items: Array<{ name: string; qty: number; price: number }> = [];
 
   // 1. If client OCR data is provided, use it
   if (clientOcr && (clientOcr.preTaxSubtotal > 0 || clientOcr.total > 0)) {
@@ -201,7 +198,7 @@ function buildFallbackReceiptData(
       const subMatch =
         decodedStr.match(/SUBTOTAL[^:]*:[^0-9]*([0-9]+\.[0-9]{2})/i) ||
         decodedStr.match(/SUBTOTAL[:\s]+[$€£¥฿]?\s*([0-9]+(?:\.[0-9]{2})?)/i);
-      if (subMatch && preTaxSubtotal === 48.0) preTaxSubtotal = parseFloat(subMatch[1]) || preTaxSubtotal;
+      if (subMatch && !preTaxSubtotal) preTaxSubtotal = parseFloat(subMatch[1]) || preTaxSubtotal;
 
       const sfMatch = decodedStr.match(/(?:SF\s*MANDATE|HEALTH)[^:]*:[^0-9]*([0-9]+\.[0-9]{2})/i);
       if (sfMatch && surcharges.length === 0) {
@@ -216,7 +213,7 @@ function buildFallbackReceiptData(
       const taxMatch =
         decodedStr.match(/TAX[^:]*:[^0-9]*([0-9]+\.[0-9]{2})/i) ||
         decodedStr.match(/TAX[:\s]+[$€£¥฿]?\s*([0-9]+(?:\.[0-9]{2})?)/i);
-      if (taxMatch && tax === 4.25) tax = parseFloat(taxMatch[1]) || tax;
+      if (taxMatch && !tax) tax = parseFloat(taxMatch[1]) || tax;
 
       const scMatch =
         decodedStr.match(/SERVICE CHARGE[^:]*:[^0-9]*([0-9]+\.[0-9]{2})/i) ||
@@ -232,7 +229,11 @@ function buildFallbackReceiptData(
   }
 
   const totalSurcharges = surcharges.reduce((acc, s) => acc + s.amount, 0);
-  const total = Math.round((preTaxSubtotal + tax + totalSurcharges + serviceCharge) * 100) / 100;
+  // The total printed on the receipt wins; otherwise add up the parts
+  const total =
+    clientOcr?.total > 0 && !decodedStr
+      ? Number(clientOcr.total)
+      : Math.round((preTaxSubtotal + tax + totalSurcharges + serviceCharge) * 100) / 100;
 
   // IMPORTANT: Tip is STRICTLY calculated on preTaxSubtotal (excluding tax AND excluding health surcharges)
   const tipBasisAmount = preTaxSubtotal;
@@ -323,6 +324,8 @@ function buildFallbackReceiptData(
       paymentAdvice: rule.taxiAdvice || undefined,
     },
     isFallback: true,
+    // Nothing usable was read off the receipt: the user needs to enter the amounts
+    needsReview: !(preTaxSubtotal > 0 || total > 0),
   };
 }
 
@@ -570,7 +573,7 @@ CRITICAL REQUIREMENTS:
    - total: Final amount due printed on receipt.
    - currencyCode: ISO 3-letter currency code (e.g. HKD, USD, EUR, GBP, JPY, CAD, MXN, AUD).
    - currencySymbol: Symbol (e.g. HK$, $, €, £, ¥, CA$).
-4. SERVICE TYPE: serviceType is one of "restaurant" (sit-down meals), "bar" (pubs, bars, lounges where drinks dominate), "cafe" (coffee shops, bakeries, counter service), "taxi" (taxis and rides), "beauty" (hair and nail salons, barbers, spas, massage). Tip tiers must fit that service in that country (e.g. US salon or taxi 15-20%, US café counter 0-15%).
+4. SERVICE TYPE: serviceType is one of "restaurant" (sit-down meals), "bar" (pubs, bars, lounges where drinks dominate), "cafe" (coffee shops, bakeries, counter service), "taxi" (taxis and rides), "beauty" (hair and nail salons, barbers, spas, massage), "hotel" (room/folio bills). Tip tiers must fit that service in that country (e.g. US salon or taxi 15-20%, US café counter 0-15%; hotel bills 0% since hotel staff get flat tips).
 5. TIPPING TIERS (Provide 4 distinct tiers strictly based on local culture and the service type):
    - poor: { percent: number, label: string, description: string } (Baseline tip for sub-par/poor service, e.g. 0% in HK/Europe/Asia, 10% in US/Canada).
    - minimum: { percent: number, label: string, description: string } (Basic acceptable service).

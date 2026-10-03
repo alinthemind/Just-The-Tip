@@ -5,6 +5,7 @@ import type { LucideIcon } from 'lucide-react';
 import { Card, IconTile, TileColor } from './ui';
 import { LanguageCode, getTranslation } from '../data/translations';
 import { localizedCountryName } from '../utils/countryName';
+import { useEtiquette } from '../data/etiquette';
 
 type RegionKey = 'all' | 'americas' | 'europe' | 'asia' | 'middle-east';
 
@@ -111,6 +112,7 @@ const TipMeter: React.FC<{ country: TippingCultureRule; t: (k: string) => string
 
 export const CultureGuide: React.FC<{ currentLang?: LanguageCode }> = ({ currentLang = 'en' }) => {
   const t = (key: string) => getTranslation(currentLang, key);
+  const tr = useEtiquette(currentLang);
   const [search, setSearch] = useState('');
   const [filterRegion, setFilterRegion] = useState<RegionKey>('all');
   const detailRef = useRef<HTMLDivElement>(null);
@@ -143,12 +145,12 @@ export const CultureGuide: React.FC<{ currentLang?: LanguageCode }> = ({ current
 
   const services: Array<{ icon: LucideIcon; color: TileColor; label: string; text: string }> = selectedCountry
     ? [
-        { icon: Utensils, color: 'gradient', label: t('restaurants'), text: selectedCountry.restaurantAdvice },
-        { icon: Wine, color: 'purple', label: t('bars'), text: selectedCountry.barAdvice },
-        { icon: Car, color: 'blue', label: t('taxis'), text: selectedCountry.taxiAdvice },
-        { icon: Coffee, color: 'yellow', label: t('cafes'), text: selectedCountry.counterCafeAdvice },
-        { icon: Sparkles, color: 'pink', label: t('beauty'), text: selectedCountry.beautyAdvice },
-        { icon: BedDouble, color: 'indigo', label: t('hotels'), text: selectedCountry.hotelAdvice },
+        { icon: Utensils, color: 'gradient', label: t('restaurants'), text: tr(selectedCountry.restaurantAdvice) },
+        { icon: Wine, color: 'purple', label: t('bars'), text: tr(selectedCountry.barAdvice) },
+        { icon: Car, color: 'blue', label: t('taxis'), text: tr(selectedCountry.taxiAdvice) },
+        { icon: Coffee, color: 'yellow', label: t('cafes'), text: tr(selectedCountry.counterCafeAdvice) },
+        { icon: Sparkles, color: 'pink', label: t('beauty'), text: tr(selectedCountry.beautyAdvice) },
+        { icon: BedDouble, color: 'indigo', label: t('hotels'), text: tr(selectedCountry.hotelAdvice) },
       ]
     : [];
 
@@ -210,7 +212,7 @@ export const CultureGuide: React.FC<{ currentLang?: LanguageCode }> = ({ current
             <div className="mt-6">
               <TipMeter country={selectedCountry} t={t} />
             </div>
-            <p className="mt-5 text-[15px] leading-snug text-zinc-600 dark:text-zinc-400">{selectedCountry.cultureSummary}</p>
+            <p className="mt-5 text-[15px] leading-snug text-zinc-600 dark:text-zinc-400">{tr(selectedCountry.cultureSummary)}</p>
           </Card>
 
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
@@ -230,7 +232,7 @@ export const CultureGuide: React.FC<{ currentLang?: LanguageCode }> = ({ current
               {selectedCountry.specialRules.map((rule, idx) => (
                 <div key={idx} className="flex items-start gap-2.5 text-[14px] leading-snug text-zinc-700 dark:text-zinc-300">
                   <Lightbulb className="w-4 h-4 text-ig-orange mt-0.5 flex-shrink-0" />
-                  <span>{rule}</span>
+                  <span>{tr(rule)}</span>
                 </div>
               ))}
             </Card>

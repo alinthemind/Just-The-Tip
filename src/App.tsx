@@ -1,8 +1,8 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { ActiveTab, GpsErrorCode, ScannedReceiptData, UserLocation } from './types';
 import { getSavedLocation, requestBrowserGps, saveLocation, setManualLocation, setLocationFromReceipt } from './utils/geolocation';
-import { getTippingRuleForCountry, getServiceTiers, SERVICE_TYPES, ServiceType, TippingCultureRule } from './data/tippingCulture';
-import { runClientOcr } from './utils/ocr';
+import { getTippingRuleForCountry, getServiceTiers, serviceAdvice, SERVICE_TYPES, ServiceType } from './data/tippingCulture';
+import { prefetchOcrModels, runClientOcr } from './utils/ocr';
 import { primeVoices, speakInLanguage } from './utils/speech';
 import { SAMPLE_RECEIPTS, SampleReceipt } from './data/sampleReceipts';
 import { Header } from './components/Header';
@@ -29,13 +29,6 @@ const GPS_ERROR_KEYS: Record<GpsErrorCode, string> = {
   unsupported: 'locNoSignal',
 };
 
-const SERVICE_ADVICE: Record<ServiceType, (rule: TippingCultureRule) => string> = {
-  restaurant: (r) => r.restaurantAdvice,
-  bar: (r) => r.barAdvice,
-  cafe: (r) => r.counterCafeAdvice,
-  taxi: (r) => r.taxiAdvice,
-  beauty: (r) => r.beautyAdvice,
-};
 
 /** Same shape as /api/scan-receipt's response, built from a demo receipt's own data */
 function sampleToScanData(sample: SampleReceipt) {
@@ -142,6 +135,13 @@ export default function App() {
   const receiptOpenRef = useRef(false);
   receiptOpenRef.current = currentReceipt !== null || isScanning;
 
+  // Once the location is known, fetch the OCR model for that country's script in the background
+  useEffect(() => {
+    if (userLocation.source === 'gps' || userLocation.source === 'ip' || userLocation.source === 'manual') {
+      prefetchOcrModels({ appLang: currentLang, countryCode: userLocation.countryCode });
+    }
+  }, [userLocation.countryCode, currentLang]);
+
   // Attempt to locate GPS on initial mount and purge any legacy history for strict user privacy
   useEffect(() => {
     primeVoices();
@@ -246,9 +246,9 @@ export default function App() {
           isTippingDiscouraged: rule.isTippingDiscouraged,
           poor: tier(tiers.poor, rule.poorLabel),
           minimum: tier(tiers.min, rule.minLabel),
-          average: tier(tiers.avg, rule.avgLabel, SERVICE_ADVICE[service](rule)),
+          average: tier(tiers.avg, rule.avgLabel, serviceAdvice(rule, service)),
           high: tier(tiers.high, rule.highLabel),
-          localEtiquetteNotes: [SERVICE_ADVICE[service](rule), ...(rule.specialRules || [])],
+          localEtiquetteNotes: [serviceAdvice(rule, service), ...(rule.specialRules || [])],
           paymentAdvice: rule.taxiAdvice || undefined,
         },
       };
@@ -316,9 +316,12 @@ export default function App() {
           clientOcrResult = await runClientOcr(base64Image);
         } else {
           setScanStep(t('stepPreparing'));
-          clientOcrResult = await runClientOcr(base64Image, (_p, statusKey) => {
-            setScanStep(t(statusKey));
-          });
+          clientOcrResult = await runClientOcr(
+            base64Image,
+            (_p, statusKey) => setScanStep(t(statusKey)),
+            // Which non-Latin script to try first if English OCR can't read the receipt
+            { appLang: currentLang, countryCode: userLocation.countryCode }
+          );
         }
       } catch (ocrErr) {
         console.warn('Client OCR notice:', ocrErr);
@@ -399,7 +402,19 @@ export default function App() {
       let resolvedState = data.state || clientOcrResult?.state;
       let locationSource: 'receipt' | 'photo-gps' | 'gps' = 'receipt';
 
+      // A country read off the receipt (script, currency, AI) beats the phone's location even without a city
+      const receiptCountry =
+        sampleInfo?.countryCode ||
+        clientOcrResult?.countryCode ||
+        (!data.isFallback && data.detectedCountry?.code && data.detectedCountry.code !== candidateCountry
+          ? data.detectedCountry.code
+          : '');
+
       if (resolvedCity) {
+        locationSource = 'receipt';
+      } else if (receiptCountry) {
+        resolvedCountryCode = receiptCountry;
+        resolvedState = '';
         locationSource = 'receipt';
       } else if (photoLocationCandidate) {
         resolvedCity = photoLocationCandidate.city;
@@ -522,7 +537,7 @@ export default function App() {
           label: rule.avgLabel,
           description: isZeroTipCulture
             ? `Standard tip in ${resolvedCity || rule.countryName} is 0% (service charge already on bill).`
-            : SERVICE_ADVICE[serviceType](rule),
+            : serviceAdvice(rule, serviceType),
         },
         high: {
           percent: highPercent,
@@ -569,6 +584,7 @@ export default function App() {
         receiptImage: base64Image,
         aiNotice: data.aiNotice,
         isFallback: data.isFallback,
+        needsReview: Boolean(data.needsReview) || (preTaxSubtotal <= 0 && total <= 0),
         scannedAt: Date.now(),
       };
 

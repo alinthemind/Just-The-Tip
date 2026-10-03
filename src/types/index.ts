@@ -65,6 +65,8 @@ export interface ScannedReceiptData {
   receiptImage?: string;
   aiNotice?: string;
   isFallback?: boolean;
+  /** Nothing could be read off the receipt; the user has to enter the amounts */
+  needsReview?: boolean;
   scannedAt: number;
 }
 

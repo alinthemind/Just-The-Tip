@@ -6,6 +6,7 @@ import { Card, Chip, IconTile } from './ui';
 import { TipPanel, TierKey } from './TipPanel';
 import { RoundMode } from '../utils/tipMath';
 import { LanguageCode, getTranslation } from '../data/translations';
+import { useEtiquette } from '../data/etiquette';
 
 interface ManualCalculatorProps {
   userLocation: UserLocation;
@@ -19,6 +20,7 @@ export const ManualCalculator: React.FC<ManualCalculatorProps> = ({
   currentLang = 'en',
 }) => {
   const t = (key: string) => getTranslation(currentLang, key);
+  const tr = useEtiquette(currentLang);
   const rule = getTippingRuleForCountry(userLocation.countryCode);
   const [billAmount, setBillAmount] = useState<string>('68.00');
   const [surchargeAmount, setSurchargeAmount] = useState<string>('');
@@ -78,7 +80,7 @@ export const ManualCalculator: React.FC<ManualCalculatorProps> = ({
         </div>
         {rule.isTippingDiscouraged && (
           <div className="mt-3 flex justify-center">
-            <Chip icon={Ban} tone="purple" title={rule.cultureSummary}>
+            <Chip icon={Ban} tone="purple" title={tr(rule.cultureSummary)}>
               {t('tippingNotCustomary')}
             </Chip>
           </div>
