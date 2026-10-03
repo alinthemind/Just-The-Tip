@@ -31,8 +31,8 @@ export const InstagramIcon: React.FC<InstagramIconProps> = ({ className = 'w-6 h
 };
 
 /**
- * Just the Tip mark: a retro-game style toadstool (bold outline, cel-shaded cap, spots, shaded stem)
- * on Instagram's signature glow. Original artwork; deliberately no face, unlike any game character.
+ * Just the Tip mascot: a cartoon toadstool (bold outline, cel-shaded cap, spots, shaded stem) with a
+ * friendly face (shiny eyes, rosy cheeks, smile) on Instagram's signature glow. Original character artwork.
  */
 export const MushroomTipLogo: React.FC<{ size?: number; className?: string }> = ({ size = 36, className = '' }) => {
   const id = React.useId().replace(/:/g, '');
@@ -65,11 +65,21 @@ export const MushroomTipLogo: React.FC<{ size?: number; className?: string }> = 
       {/* ground shadow */}
       <ellipse cx="32" cy="57.6" rx="14" ry="2.6" fill="#2a0a24" opacity="0.28"/>
       {/* stem */}
-      <path d="M23 38.5 C22 45 21.5 51 23 54.5 C24.6 58 39.4 58 41 54.5 C42.5 51 42 45 41 38.5 Z" fill={`url(#${id}-stem)`} stroke="#3b0a2a" strokeWidth="2" strokeLinejoin="round"/>
+      <path d="M21.5 38.5 C20.2 45 19.8 51.5 21.4 55 C23.2 58.6 40.8 58.6 42.6 55 C44.2 51.5 43.8 45 42.5 38.5 Z" fill={`url(#${id}-stem)`} stroke="#3b0a2a" strokeWidth="2" strokeLinejoin="round"/>
       {/* shadow the cap casts on the stem */}
-      <path d="M23.4 39.4 C28 42.2 36 42.2 40.6 39.4 L40.9 43 C36 45.2 28 45.2 23.1 43 Z" fill="#c9965f" opacity="0.55"/>
+      <path d="M21.9 39.4 C27.5 42.4 36.5 42.4 42.1 39.4 L42.5 43 C36.5 45.4 27.5 45.4 21.5 43 Z" fill="#c9965f" opacity="0.55"/>
       {/* stem highlight */}
-      <path d="M26 44 C25.4 48 25.4 51 26.4 53.2" fill="none" stroke="#ffffff" strokeWidth="1.8" strokeLinecap="round" opacity="0.8"/>
+      <path d="M23.6 45 C23.1 48.5 23.2 51.5 24.2 53.8" fill="none" stroke="#ffffff" strokeWidth="1.6" strokeLinecap="round" opacity="0.8"/>
+      {/* face: shiny cartoon eyes, rosy cheeks, small smile */}
+      <ellipse cx="28.2" cy="47.4" rx="2.3" ry="3.5" fill="#2a0a24"/>
+      <ellipse cx="35.8" cy="47.4" rx="2.3" ry="3.5" fill="#2a0a24"/>
+      <circle cx="28.9" cy="46" r="1" fill="#ffffff"/>
+      <circle cx="36.5" cy="46" r="1" fill="#ffffff"/>
+      <circle cx="27.6" cy="48.9" r="0.45" fill="#ffffff" opacity="0.8"/>
+      <circle cx="35.2" cy="48.9" r="0.45" fill="#ffffff" opacity="0.8"/>
+      <ellipse cx="24.6" cy="51.6" rx="2.1" ry="1.2" fill="#ff6f9a" opacity="0.55"/>
+      <ellipse cx="39.4" cy="51.6" rx="2.1" ry="1.2" fill="#ff6f9a" opacity="0.55"/>
+      <path d="M30.2 52.2 Q32 54 33.8 52.2" fill="none" stroke="#2a0a24" strokeWidth="1.3" strokeLinecap="round"/>
       {/* gills band under the cap */}
       <path d="M15 36.6 C22 35.4 42 35.4 49 36.6 C47 39.6 41 40.8 32 40.8 C23 40.8 17 39.6 15 36.6 Z" fill="#f4d7ab" stroke="#3b0a2a" strokeWidth="2" strokeLinejoin="round"/>
       {/* cap */}
