@@ -9,7 +9,7 @@ import { TipResults } from './components/TipResults';
 import { ManualCalculator } from './components/ManualCalculator';
 import { CultureGuide } from './components/CultureGuide';
 import { LocationPickerModal } from './components/LocationPickerModal';
-import { AlertCircle, CheckCircle2 } from 'lucide-react';
+import { AlertCircle, CheckCircle2, Lock, X } from 'lucide-react';
 import { LanguageCode, SUPPORTED_LANGUAGES, getTranslation } from './data/translations';
 
 const HISTORY_STORAGE_KEY = 'globaltip_scans_history';
@@ -402,10 +402,9 @@ export default function App() {
   };
 
   return (
-    <div className={`min-h-screen flex flex-col font-sans transition-colors duration-200 selection:bg-pink-500/20 selection:text-pink-500 ${
-      theme === 'dark' ? 'dark bg-zinc-950 text-zinc-100' : 'bg-zinc-50 text-zinc-900'
+    <div className={`min-h-screen flex flex-col font-sans transition-colors duration-200 selection:bg-accent/20 ${
+      theme === 'dark' ? 'dark bg-black text-white' : 'bg-grouped text-zinc-900'
     }`}>
-      {/* Header with Navigation and GPS selector */}
       <Header
         activeTab={activeTab}
         setActiveTab={(tab) => {
@@ -424,41 +423,37 @@ export default function App() {
         onToggleTheme={handleToggleTheme}
       />
 
-      {/* Floating Location Refresh Toast Notification */}
+      {/* Toast */}
       {toastMessage && (
-        <div className="fixed top-14 sm:top-16 right-3 sm:right-6 z-50 animate-in slide-in-from-top-2 fade-in duration-200">
-          <div
-            className={`flex items-center gap-2.5 px-4 py-2.5 rounded-2xl text-xs font-bold shadow-2xl backdrop-blur-md border ${
-              toastMessage.type === 'error'
-                ? 'bg-rose-950/90 text-rose-100 border-rose-800'
-                : 'bg-zinc-950/90 text-white border-zinc-700'
-            }`}
+        <div className="fixed top-16 inset-x-0 z-50 flex justify-center px-4 pointer-events-none animate-in slide-in-from-top-2 fade-in duration-200">
+          <button
+            type="button"
+            onClick={() => setToastMessage(null)}
+            className="pointer-events-auto inline-flex items-center gap-2 pl-3 pr-4 py-2.5 rounded-full text-[15px] font-medium shadow-[0_8px_30px_rgba(0,0,0,0.18)] backdrop-blur-xl bg-white/90 dark:bg-elevated-2/90 text-zinc-900 dark:text-white cursor-pointer"
           >
-            <span className="flex-1">{toastMessage.text}</span>
-            <button
-              onClick={() => setToastMessage(null)}
-              className="text-zinc-400 hover:text-white ml-1 text-xs cursor-pointer"
-            >
-              ✕
-            </button>
-          </div>
+            {toastMessage.type === 'error' ? (
+              <AlertCircle className="w-5 h-5 text-[#ff3b30]" />
+            ) : (
+              <CheckCircle2 className="w-5 h-5 text-[#34c759]" />
+            )}
+            <span>{toastMessage.text}</span>
+          </button>
         </div>
       )}
 
       {/* Main Content Area */}
-      <main className="flex-1 max-w-5xl w-full mx-auto px-3 sm:px-6 py-4 sm:py-8 pb-28 sm:pb-8">
+      <main className="flex-1 max-w-5xl w-full mx-auto px-4 sm:px-6 py-5 sm:py-10 pb-6 sm:pb-10">
         {scanError && (
-          <div className="mb-6 p-4 rounded-2xl bg-rose-50 dark:bg-rose-950/40 border border-rose-200 dark:border-rose-900 text-rose-800 dark:text-rose-200 text-xs sm:text-sm flex items-start gap-3 shadow-sm animate-in fade-in">
-            <AlertCircle className="w-5 h-5 text-rose-600 dark:text-rose-400 flex-shrink-0 mt-0.5" />
-            <div className="flex-1">
-              <span className="font-bold block">Receipt Scan Error</span>
-              <p>{scanError}</p>
-            </div>
+          <div className="max-w-xl mx-auto mb-5 px-4 py-3 rounded-[16px] bg-[#ff3b30]/10 text-[15px] text-[#d70015] dark:text-[#ff6961] flex items-center gap-3">
+            <AlertCircle className="w-5 h-5 flex-shrink-0" />
+            <p className="flex-1">{scanError}</p>
             <button
+              type="button"
               onClick={() => setScanError(null)}
-              className="text-rose-600 dark:text-rose-400 hover:text-rose-900 font-bold text-xs cursor-pointer"
+              aria-label="Dismiss"
+              className="w-7 h-7 rounded-full flex items-center justify-center hover:bg-[#ff3b30]/10 cursor-pointer"
             >
-              Dismiss
+              <X className="w-4 h-4" />
             </button>
           </div>
         )}
@@ -490,18 +485,19 @@ export default function App() {
           <ManualCalculator
             userLocation={userLocation}
             onOpenLocationPicker={() => setIsLocationModalOpen(true)}
+            currentLang={currentLang}
           />
         )}
 
         {/* Tab 3: World Etiquette Guide */}
-        {activeTab === 'guide' && <CultureGuide />}
+        {activeTab === 'guide' && <CultureGuide currentLang={currentLang} />}
 
-        {/* Minimal Sponsored Banner Container (Below all inputs and outputs) */}
+        {/* Sponsored slot */}
         <div
-          className="mt-[40px] w-full max-w-[320px] sm:max-w-[468px] h-[60px] mx-auto flex items-center justify-center border border-zinc-200/80 dark:border-zinc-800 bg-zinc-50/60 dark:bg-zinc-900/60 rounded-xl transition-colors"
+          className="mt-10 w-full max-w-[320px] sm:max-w-[468px] h-[60px] mx-auto flex items-center justify-center rounded-[14px] bg-black/[0.03] dark:bg-white/[0.04]"
           aria-label="Sponsored Content"
         >
-          <span className="text-[11px] font-semibold uppercase tracking-wider text-zinc-400 dark:text-zinc-500 select-none">
+          <span className="text-[11px] font-medium uppercase tracking-wider text-zinc-400 dark:text-zinc-600 select-none">
             Sponsored
           </span>
         </div>
@@ -515,20 +511,13 @@ export default function App() {
         onSelectCountry={handleSelectCountry}
         onRefreshGps={() => handleRefreshGps(true)}
         isLocating={isLocating}
+        currentLang={currentLang}
       />
 
       {/* Footer */}
-      <footer className="border-t border-zinc-200/80 dark:border-zinc-800/80 bg-white dark:bg-zinc-950 py-6 pb-24 sm:pb-6 mt-8 sm:mt-12 text-center text-xs text-zinc-500 dark:text-zinc-400 transition-colors">
-        <div className="max-w-5xl mx-auto px-4 flex flex-col sm:flex-row items-center justify-between gap-2">
-          <div className="flex items-center gap-1.5 justify-center">
-            <span className="font-black text-zinc-900 dark:text-zinc-100">Just the <span className="ig-gradient-text">Tip</span></span>
-            <span>•</span>
-            <span>Accurate GPS tipping etiquette for travelers &amp; diners worldwide</span>
-          </div>
-          <div>
-            {t('privacyFooter')}
-          </div>
-        </div>
+      <footer className="py-6 pb-28 sm:pb-8 text-center text-[12px] text-zinc-400 dark:text-zinc-600 flex items-center justify-center gap-1.5">
+        <Lock className="w-3 h-3" />
+        <span>{t('privacyBadge')}</span>
       </footer>
     </div>
   );

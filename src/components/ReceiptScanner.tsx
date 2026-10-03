@@ -1,10 +1,11 @@
 import React, { useRef, useState } from 'react';
-import { Camera, Upload, Sparkles, FileText, ArrowRight, ShieldCheck, MapPin, Lock } from 'lucide-react';
+import { Camera, ImageUp, ShieldCheck, Lock, ChevronRight } from 'lucide-react';
 import { SAMPLE_RECEIPTS, SampleReceipt } from '../data/sampleReceipts';
 import { LiveCameraModal } from './LiveCameraModal';
 import { UserLocation } from '../types';
 import { extractExifGps, ExifGpsCoords } from '../utils/exif';
 import { LanguageCode, getTranslation } from '../data/translations';
+import { Card, SectionCaption } from './ui';
 
 interface ReceiptScannerProps {
   onScan: (
@@ -96,16 +97,18 @@ export const ReceiptScanner: React.FC<ReceiptScannerProps> = ({
     });
   };
 
+  const openCamera = () => {
+    if (/Mobi|Android|iPhone|iPad/i.test(navigator.userAgent)) {
+      nativeCameraInputRef.current?.click();
+    } else {
+      setIsCameraModalOpen(true);
+    }
+  };
+
   return (
-    <div className="space-y-4 sm:space-y-5 pb-20 sm:pb-8">
+    <div className="space-y-6 max-w-xl mx-auto">
       {/* Hidden inputs */}
-      <input
-        type="file"
-        ref={fileInputRef}
-        onChange={handleFileChange}
-        accept="image/*"
-        className="hidden"
-      />
+      <input type="file" ref={fileInputRef} onChange={handleFileChange} accept="image/*" className="hidden" />
       <input
         type="file"
         ref={nativeCameraInputRef}
@@ -125,156 +128,95 @@ export const ReceiptScanner: React.FC<ReceiptScannerProps> = ({
         }}
       />
 
-      {/* Main Snap Card */}
-      <div className="bg-white dark:bg-zinc-900 rounded-3xl border border-zinc-200/80 dark:border-zinc-800 shadow-[0_2px_12px_rgba(0,0,0,0.04)] dark:shadow-none overflow-hidden p-4 sm:p-7 relative transition-colors">
-        <div className="absolute top-0 left-0 right-0 h-1.5 ig-gradient" />
-
-        <div className="text-center max-w-sm mx-auto mb-4 sm:mb-5 pt-0.5">
-          <div className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-pink-50 dark:bg-pink-950/50 border border-pink-200/70 dark:border-pink-900/50 text-[11px] font-bold mb-2">
-            <Sparkles className="w-3 h-3 text-[#E1306C]" />
-            <span className="ig-gradient-text">Pre-Tax Tip Protection</span>
-          </div>
-
-          <h2 className="text-2xl sm:text-3xl font-black tracking-tight text-zinc-900 dark:text-zinc-100 leading-tight">
-            Snap Receipt. <span className="ig-gradient-text">Just the Tip.</span>
-          </h2>
-
-          <p className="text-xs text-zinc-500 dark:text-zinc-400 mt-1">
-            Uses receipt restaurant &amp; location first, photo GPS second. Calculates strictly on pre-tax subtotal.
-          </p>
-        </div>
-
-        {isScanning ? (
-          /* Scanning progress */
-          <div className="py-6 sm:py-10 px-4 flex flex-col items-center justify-center text-center">
-            <div className="ig-story-ring p-1 shadow-xl shadow-pink-500/20 animate-pulse mb-4">
-              <div className="relative w-36 h-48 sm:w-40 sm:h-52 rounded-2xl bg-zinc-950 overflow-hidden flex items-center justify-center">
-                {previewImage ? (
-                  <img
-                    src={previewImage}
-                    alt="Receipt Preview"
-                    className="w-full h-full object-cover opacity-70"
-                  />
-                ) : (
-                  <FileText className="w-10 h-10 text-zinc-500" />
-                )}
-                <div className="absolute inset-x-0 h-1 ig-gradient shadow-[0_0_12px_#E1306C] animate-bounce" />
+      <Card className="px-5 pt-8 pb-5 text-center">
+        <div
+          onDrop={handleDrop}
+          onDragOver={handleDragOver}
+          onDragLeave={handleDragLeave}
+          className={`rounded-[18px] transition-all ${dragActive ? 'bg-accent/5 ring-2 ring-accent scale-[1.01]' : ''}`}
+        >
+          {isScanning ? (
+            /* Scanning: the photo being read, with a sweeping scan line */
+            <div className="flex flex-col items-center">
+              <div className="relative w-40 h-52 rounded-[18px] overflow-hidden bg-zinc-100 dark:bg-elevated-2 shadow-[0_12px_32px_-12px_rgba(0,0,0,0.35)]">
+                {previewImage && <img src={previewImage} alt="" className="w-full h-full object-cover" />}
+                <div
+                  className="absolute inset-x-0 top-2 h-[3px] bg-accent shadow-[0_0_16px_4px_rgba(255,45,85,0.55)] animate-scan"
+                  style={{ ['--sweep' as any]: '190px' }}
+                />
               </div>
-            </div>
-
-            <div className="space-y-1 max-w-xs">
-              <h3 className="font-black text-zinc-900 dark:text-zinc-100 text-sm">Reading Receipt &amp; Location...</h3>
-              <p className="text-xs text-zinc-500 dark:text-zinc-400 font-mono min-h-[1.25rem] animate-pulse">
-                {scanStep || 'Detecting restaurant, city & pre-tax subtotal...'}
+              <p className="mt-5 text-[15px] text-zinc-500 dark:text-zinc-400 min-h-[1.5rem] animate-pulse">
+                {scanStep || '…'}
               </p>
             </div>
+          ) : (
+            <>
+              <ReceiptIllustration />
+              <h2 className="mt-6 text-[28px] font-bold tracking-tight leading-tight text-zinc-900 dark:text-white">
+                {t('snapReceipt')} <span className="text-accent">{t('snapReceiptSub')}</span>
+              </h2>
 
-            <div className="w-40 bg-zinc-100 dark:bg-zinc-800 rounded-full h-1.5 mt-3 overflow-hidden">
-              <div className="ig-gradient h-1.5 rounded-full animate-pulse w-4/5" />
-            </div>
-          </div>
-        ) : (
-          /* Upload / Capture Buttons */
-          <div className="space-y-3">
-            <div
-              onDrop={handleDrop}
-              onDragOver={handleDragOver}
-              onDragLeave={handleDragLeave}
-              className={`border-2 border-dashed rounded-2xl p-4 sm:p-6 text-center transition-all ${
-                dragActive
-                  ? 'border-[#E1306C] bg-pink-50/40 dark:bg-pink-950/20 scale-[1.01]'
-                  : 'border-zinc-200 dark:border-zinc-800 hover:border-pink-300 dark:hover:border-pink-500/50 bg-zinc-50/40 dark:bg-zinc-950/40'
-              }`}
-            >
-              <div className="flex flex-col sm:flex-row items-center justify-center gap-2.5 max-w-md mx-auto">
+              <div className="mt-6 grid grid-cols-2 gap-2.5">
                 <button
                   type="button"
-                  onClick={() => {
-                    if (/Mobi|Android|iPhone|iPad/i.test(navigator.userAgent)) {
-                      nativeCameraInputRef.current?.click();
-                    } else {
-                      setIsCameraModalOpen(true);
-                    }
-                  }}
-                  className="w-full sm:w-auto flex-1 flex items-center justify-center gap-2 px-5 py-3 rounded-2xl ig-gradient hover:opacity-95 active:scale-95 text-white font-bold text-sm shadow-md shadow-pink-500/25 transition-all cursor-pointer min-h-[46px]"
+                  onClick={openCamera}
+                  className="flex flex-col items-center justify-center gap-1.5 py-4 rounded-[16px] bg-accent text-white active:scale-[0.97] transition-transform cursor-pointer shadow-[0_8px_20px_-8px_rgba(255,45,85,0.7)]"
                 >
-                  <Camera className="w-4 h-4" />
-                  {t('takePhoto')}
+                  <Camera className="w-7 h-7" strokeWidth={1.8} />
+                  <span className="text-[15px] font-semibold">{t('takePhoto')}</span>
                 </button>
-
                 <button
                   type="button"
                   onClick={() => fileInputRef.current?.click()}
-                  className="w-full sm:w-auto flex-1 flex items-center justify-center gap-2 px-5 py-3 rounded-2xl bg-white dark:bg-zinc-800 hover:bg-zinc-50 dark:hover:bg-zinc-700/80 active:scale-95 border border-zinc-200 dark:border-zinc-700 text-zinc-900 dark:text-zinc-100 font-bold text-sm shadow-xs transition-all cursor-pointer min-h-[46px]"
+                  className="flex flex-col items-center justify-center gap-1.5 py-4 rounded-[16px] bg-[#767680]/12 dark:bg-[#767680]/24 text-zinc-900 dark:text-white active:scale-[0.97] transition-transform cursor-pointer"
                 >
-                  <Upload className="w-4 h-4 text-zinc-600 dark:text-zinc-300" />
-                  {t('uploadPhoto')}
+                  <ImageUp className="w-7 h-7 text-accent" strokeWidth={1.8} />
+                  <span className="text-[15px] font-semibold">{t('uploadPhoto')}</span>
                 </button>
               </div>
 
-              <div className="flex flex-wrap items-center justify-center gap-2 text-[11px] text-zinc-500 dark:text-zinc-400 mt-3 font-medium">
-                <span className="flex items-center gap-1">
-                  <ShieldCheck className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" />
+              <div className="mt-4 flex items-center justify-center gap-4 text-[12px] text-zinc-500 dark:text-zinc-400">
+                <span className="inline-flex items-center gap-1" title={t('excludesTax')}>
+                  <ShieldCheck className="w-3.5 h-3.5 text-[#34c759]" />
                   {t('preTaxBasis')}
                 </span>
-                <span>•</span>
-                <span className="flex items-center gap-1">
-                  <Lock className="w-3.5 h-3.5 text-pink-600 dark:text-pink-400" />
+                <span className="inline-flex items-center gap-1" title={t('privacyBadge')}>
+                  <Lock className="w-3.5 h-3.5 text-[#007aff]" />
                   {t('zeroHistory')}
                 </span>
-                <span>•</span>
-                <span>{t('receiptGpsFirst')}</span>
               </div>
-            </div>
-          </div>
-        )}
-      </div>
-
-      {/* Quick Test Demo Receipts */}
-      <div className="bg-white dark:bg-zinc-900 rounded-3xl border border-zinc-200/80 dark:border-zinc-800 p-4 sm:p-5 shadow-[0_2px_12px_rgba(0,0,0,0.03)] dark:shadow-none transition-colors">
-        <div className="flex items-center justify-between mb-2.5">
-          <div className="flex items-center gap-2">
-            <span className="text-xs sm:text-sm font-black text-zinc-900 dark:text-zinc-100">
-              {t('demoReceiptsTitle')}
-            </span>
-            <span className="text-[9px] font-extrabold ig-gradient-text bg-pink-50 dark:bg-pink-950/50 border border-pink-200/70 dark:border-pink-900/50 px-2 py-0.5 rounded-full uppercase tracking-wider">
-              {t('quickDemo')}
-            </span>
-          </div>
-          <span className="text-[11px] text-zinc-400 dark:text-zinc-500 hidden sm:block">{t('clickSampleToTest')}</span>
+            </>
+          )}
         </div>
+      </Card>
 
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-2">
+      {/* Sample receipts as thumbnails */}
+      <div>
+        <SectionCaption>{t('demoReceiptsTitle')}</SectionCaption>
+        <div className="flex gap-3 overflow-x-auto no-scrollbar snap-x snap-mandatory -mx-3 px-3 sm:mx-0 sm:px-0 pb-1">
           {SAMPLE_RECEIPTS.map((sample) => (
             <button
               key={sample.id}
+              type="button"
               onClick={() => handleSampleSelect(sample)}
               disabled={isScanning}
-              className="text-left p-3 rounded-2xl border border-zinc-200/80 dark:border-zinc-800 hover:border-pink-300 dark:hover:border-pink-500/50 hover:shadow-sm transition-all group flex flex-col justify-between bg-zinc-50/50 dark:bg-zinc-950/50 hover:bg-white dark:hover:bg-zinc-800/80 cursor-pointer disabled:opacity-50 active:scale-98"
+              title={sample.name}
+              className="snap-start flex-shrink-0 w-[124px] text-left cursor-pointer disabled:opacity-50 active:scale-95 transition-transform group"
             >
-              <div>
-                <div className="flex items-center justify-between gap-1 mb-1">
-                  <div className="flex items-center gap-1.5">
-                    <span className="text-base">{sample.flag}</span>
-                    <span className="text-xs font-bold text-zinc-800 dark:text-zinc-200">{sample.city}</span>
-                  </div>
-                  <span className="text-xs font-mono font-black text-zinc-900 dark:text-zinc-100">
-                    {sample.currencySymbol}{sample.total.toFixed(2)}
-                  </span>
-                </div>
-
-                <div className="font-bold text-xs text-zinc-900 dark:text-zinc-100 group-hover:text-[#E1306C] dark:group-hover:text-pink-400 transition-colors line-clamp-1">
-                  {sample.name}
-                </div>
-
-                <div className="text-[10px] text-zinc-500 dark:text-zinc-400 mt-1 line-clamp-1">
-                  {sample.notes}
-                </div>
+              <div className="relative h-[164px] rounded-[16px] overflow-hidden bg-zinc-100 dark:bg-elevated">
+                <img
+                  src={sample.svgDataUri}
+                  alt={sample.name}
+                  loading="lazy"
+                  className="w-full h-full object-cover object-top group-hover:scale-[1.03] transition-transform"
+                />
+                <span className="absolute top-2 left-2 w-7 h-7 rounded-full bg-white/90 dark:bg-black/60 backdrop-blur flex items-center justify-center text-base leading-none">
+                  {sample.flag}
+                </span>
               </div>
-
-              <div className="mt-2.5 pt-2 border-t border-zinc-200/60 dark:border-zinc-800 flex items-center justify-between text-[10px] font-bold ig-gradient-text">
-                <span>{t('testScan')}</span>
-                <ArrowRight className="w-3 h-3 text-[#E1306C] group-hover:translate-x-0.5 transition-transform" />
+              <div className="mt-1.5 px-0.5 flex items-center justify-between gap-1">
+                <span className="text-[13px] font-medium text-zinc-900 dark:text-white truncate">{sample.city}</span>
+                <ChevronRight className="w-3.5 h-3.5 text-zinc-400 flex-shrink-0" />
               </div>
             </button>
           ))}
@@ -283,3 +225,51 @@ export const ReceiptScanner: React.FC<ReceiptScannerProps> = ({
     </div>
   );
 };
+
+/** Receipt inside camera viewfinder corners: the app in one picture */
+const ReceiptIllustration: React.FC = () => (
+  <svg viewBox="0 0 200 170" className="w-48 h-auto mx-auto" aria-hidden="true">
+    {/* viewfinder corners */}
+    <g fill="none" stroke="currentColor" strokeWidth="5" strokeLinecap="round" className="text-zinc-300 dark:text-zinc-600">
+      <path d="M30 34 V18 a8 8 0 0 1 8 -8 H54" />
+      <path d="M146 10 H162 a8 8 0 0 1 8 8 V34" />
+      <path d="M170 136 V152 a8 8 0 0 1 -8 8 H146" />
+      <path d="M54 160 H38 a8 8 0 0 1 -8 -8 V136" />
+    </g>
+    {/* receipt */}
+    <g>
+      <path
+        d="M62 24 H138 V142 l-7.6 -6 -7.6 6 -7.6 -6 -7.6 6 -7.6 -6 -7.6 6 -7.6 -6 -7.6 6 -7.6 -6 -7.6 6 Z"
+        className="fill-white dark:fill-zinc-100"
+        stroke="#d4d4d8"
+        strokeWidth="1.5"
+        strokeLinejoin="round"
+      />
+      <rect x="76" y="38" width="48" height="7" rx="3.5" fill="#a1a1aa" />
+      <g fill="#d4d4d8">
+        <rect x="74" y="56" width="34" height="5" rx="2.5" />
+        <rect x="114" y="56" width="12" height="5" rx="2.5" />
+        <rect x="74" y="68" width="28" height="5" rx="2.5" />
+        <rect x="114" y="68" width="12" height="5" rx="2.5" />
+        <rect x="74" y="80" width="38" height="5" rx="2.5" />
+        <rect x="114" y="80" width="12" height="5" rx="2.5" />
+      </g>
+      <line x1="74" y1="94" x2="126" y2="94" stroke="#d4d4d8" strokeWidth="1.5" strokeDasharray="3 3" />
+      <rect x="74" y="102" width="24" height="6" rx="3" fill="#71717a" />
+      <rect x="108" y="102" width="18" height="6" rx="3" fill="#71717a" />
+    </g>
+    {/* tip coin */}
+    <g transform="translate(140 108)">
+      <circle r="20" className="fill-accent" />
+      <circle r="20" fill="none" stroke="white" strokeOpacity="0.35" strokeWidth="2" />
+      <text y="7" textAnchor="middle" fontSize="20" fontWeight="700" fill="white" fontFamily="-apple-system, system-ui, sans-serif">
+        %
+      </text>
+    </g>
+    {/* scan line */}
+    <g className="animate-scan" style={{ ['--sweep' as any]: '96px' }}>
+      <rect x="40" y="28" width="120" height="3" rx="1.5" className="fill-accent" opacity="0.9" />
+      <rect x="40" y="22" width="120" height="14" rx="7" className="fill-accent" opacity="0.12" />
+    </g>
+  </svg>
+);

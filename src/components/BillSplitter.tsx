@@ -1,26 +1,25 @@
 import React, { useState } from 'react';
-import { Users, Copy, Check, Plus, Minus } from 'lucide-react';
+import { Users, Copy, Check, Plus, Minus, ArrowUpToLine } from 'lucide-react';
+import { formatMoney } from '../utils/tipMath';
 
 interface BillSplitterProps {
   totalWithTip: number;
   tipAmount: number;
-  subtotal: number;
-  tax: number;
   currencySymbol: string;
   currencyCode: string;
   merchantName: string;
+  t: (key: string) => string;
 }
 
 export const BillSplitter: React.FC<BillSplitterProps> = ({
   totalWithTip,
   tipAmount,
-  subtotal,
-  tax,
   currencySymbol,
   currencyCode,
   merchantName,
+  t,
 }) => {
-  const [diners, setDiners] = useState(2);
+  const [diners, setDiners] = useState(1);
   const [roundUpPerPerson, setRoundUpPerPerson] = useState(false);
   const [copied, setCopied] = useState(false);
 
@@ -31,102 +30,82 @@ export const BillSplitter: React.FC<BillSplitterProps> = ({
   const tipPerPerson = Math.round((tipAmount / diners) * 100) / 100;
 
   const handleCopy = () => {
-    const text = `🍽️ Bill Split for ${merchantName || 'Dining'}:
-Total with Tip: ${currencySymbol}${totalWithTip.toFixed(2)} (${currencyCode})
-Split between: ${diners} people
-👉 Each person pays: ${currencySymbol}${finalPerPerson.toFixed(2)}
-(Bill: ${currencySymbol}${basePerPerson.toFixed(2)} + Tip: ${currencySymbol}${tipPerPerson.toFixed(2)})`;
+    const text = `🍽️ ${merchantName || 'Bill'}
+${t('total')}: ${formatMoney(currencySymbol, totalWithTip)} (${currencyCode})
+👥 ${diners}
+👉 ${t('eachPersonPays')}: ${formatMoney(currencySymbol, finalPerPerson)}
+(${t('bill')}: ${formatMoney(currencySymbol, basePerPerson)} + ${t('tip')}: ${formatMoney(currencySymbol, tipPerPerson)})`;
 
-    navigator.clipboard.writeText(text);
+    navigator.clipboard?.writeText(text).catch(() => {});
     setCopied(true);
-    setTimeout(() => setCopied(false), 2500);
+    setTimeout(() => setCopied(false), 2000);
   };
 
-  return (
-    <div className="bg-gradient-to-br from-zinc-50 via-pink-50/20 to-zinc-50 dark:from-zinc-900/90 dark:via-pink-950/20 dark:to-zinc-900/90 rounded-2xl border border-zinc-200/80 dark:border-zinc-800 p-4 sm:p-5 mt-4 transition-colors">
-      <div className="flex items-center justify-between mb-3.5 gap-2">
-        <div className="flex items-center gap-2">
-          <div className="ig-story-ring-sm">
-            <div className="w-7 h-7 rounded-full bg-white dark:bg-zinc-900 flex items-center justify-center text-[#E1306C]">
-              <Users className="w-3.5 h-3.5" />
-            </div>
-          </div>
-          <div>
-            <h4 className="font-extrabold text-xs sm:text-sm text-zinc-900 dark:text-zinc-100 leading-tight">
-              Split Bill Among Diners
-            </h4>
-            <p className="text-[11px] text-zinc-500 dark:text-zinc-400">Each person's exact share with tip</p>
-          </div>
-        </div>
+  const stepBtn =
+    'w-8 h-8 rounded-full flex items-center justify-center text-zinc-700 dark:text-zinc-200 hover:bg-white dark:hover:bg-[#636366] disabled:opacity-30 transition-colors active:scale-90 cursor-pointer';
 
-        {/* Counter controls with large touch targets */}
-        <div className="flex items-center gap-1.5 bg-white dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 rounded-full px-2 py-1 shadow-xs">
+  return (
+    <div className="mt-5 pt-4 border-t border-black/[0.06] dark:border-white/[0.08]">
+      <div className="flex items-center gap-3">
+        <Users className="w-5 h-5 text-zinc-400 flex-shrink-0" aria-label={t('numPeople')} />
+
+        {/* Stepper */}
+        <div className="flex items-center rounded-full bg-[#767680]/12 dark:bg-[#767680]/24 p-0.5" title={t('numPeople')}>
           <button
+            type="button"
             onClick={() => setDiners((d) => Math.max(1, d - 1))}
             disabled={diners <= 1}
-            className="w-7 h-7 rounded-full flex items-center justify-center text-zinc-600 dark:text-zinc-300 hover:text-zinc-900 dark:hover:text-zinc-100 hover:bg-zinc-100 dark:hover:bg-zinc-700 disabled:opacity-30 transition-colors active:scale-90"
-            title="Decrease diners"
+            className={stepBtn}
+            aria-label="−"
           >
-            <Minus className="w-3.5 h-3.5" />
+            <Minus className="w-4 h-4" />
           </button>
-          <span className="font-black text-zinc-900 dark:text-zinc-100 text-xs sm:text-sm w-6 text-center font-mono">
-            {diners}
-          </span>
+          <span className="w-7 text-center text-[15px] font-semibold tabular-nums text-zinc-900 dark:text-white">{diners}</span>
           <button
+            type="button"
             onClick={() => setDiners((d) => Math.min(30, d + 1))}
-            className="w-7 h-7 rounded-full flex items-center justify-center text-zinc-600 dark:text-zinc-300 hover:text-zinc-900 dark:hover:text-zinc-100 hover:bg-zinc-100 dark:hover:bg-zinc-700 transition-colors active:scale-90"
-            title="Increase diners"
+            className={stepBtn}
+            aria-label="+"
           >
-            <Plus className="w-3.5 h-3.5" />
+            <Plus className="w-4 h-4" />
           </button>
         </div>
+
+        <div className="flex-1" />
+
+        <button
+          type="button"
+          onClick={() => setRoundUpPerPerson((v) => !v)}
+          aria-pressed={roundUpPerPerson}
+          title={t('roundUp')}
+          aria-label={t('roundUp')}
+          className={`w-8 h-8 rounded-full flex items-center justify-center transition-colors cursor-pointer active:scale-90 ${
+            roundUpPerPerson ? 'bg-accent text-white' : 'bg-[#767680]/12 dark:bg-[#767680]/24 text-zinc-500 dark:text-zinc-300'
+          }`}
+        >
+          <ArrowUpToLine className="w-4 h-4" />
+        </button>
+        <button
+          type="button"
+          onClick={handleCopy}
+          title={copied ? t('copied') : t('copy')}
+          aria-label={copied ? t('copied') : t('copy')}
+          className={`w-8 h-8 rounded-full flex items-center justify-center transition-colors cursor-pointer active:scale-90 ${
+            copied ? 'bg-[#34c759] text-white' : 'bg-[#767680]/12 dark:bg-[#767680]/24 text-zinc-500 dark:text-zinc-300'
+          }`}
+        >
+          {copied ? <Check className="w-4 h-4" /> : <Copy className="w-4 h-4" />}
+        </button>
       </div>
 
-      {/* Split Result Card */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 items-center bg-white dark:bg-zinc-950/70 p-3.5 sm:p-4 rounded-2xl border border-zinc-200/80 dark:border-zinc-800 shadow-xs">
-        <div>
-          <span className="text-[10px] font-black uppercase tracking-wider text-zinc-400 dark:text-zinc-500">
-            Each Person Pays
+      {diners > 1 && (
+        <div className="mt-3 flex items-baseline justify-between gap-3">
+          <span className="text-[13px] text-zinc-500 dark:text-zinc-400">{t('eachPersonPays')}</span>
+          <span className="text-[22px] font-semibold tabular-nums text-zinc-900 dark:text-white">
+            {formatMoney(currencySymbol, finalPerPerson)}
           </span>
-          <div className="text-2xl sm:text-3xl font-black ig-gradient-text font-mono mt-0.5">
-            {currencySymbol}{finalPerPerson.toFixed(2)}
-          </div>
-          <div className="text-xs text-zinc-500 dark:text-zinc-400 mt-1 flex items-center gap-2">
-            <span>Bill: {currencySymbol}{basePerPerson.toFixed(2)}</span>
-            <span>•</span>
-            <span className="text-zinc-700 dark:text-zinc-300 font-medium">Tip: {currencySymbol}{tipPerPerson.toFixed(2)}</span>
-          </div>
         </div>
-
-        <div className="flex flex-col sm:items-end gap-2 pt-2 sm:pt-0 border-t sm:border-t-0 border-zinc-100 dark:border-zinc-800">
-          <label className="flex items-center gap-2 text-xs text-zinc-600 dark:text-zinc-300 cursor-pointer select-none">
-            <input
-              type="checkbox"
-              checked={roundUpPerPerson}
-              onChange={(e) => setRoundUpPerPerson(e.target.checked)}
-              className="rounded text-[#E1306C] focus:ring-pink-400 w-4 h-4 border-zinc-300 dark:border-zinc-700 dark:bg-zinc-800"
-            />
-            <span>Round up to nearest whole {currencySymbol}</span>
-          </label>
-
-          <button
-            onClick={handleCopy}
-            className="w-full sm:w-auto flex items-center justify-center gap-1.5 px-3.5 py-2 rounded-xl ig-gradient hover:opacity-95 text-white text-xs font-bold transition-all shadow-md shadow-pink-500/20 active:scale-95 cursor-pointer"
-          >
-            {copied ? (
-              <>
-                <Check className="w-3.5 h-3.5 text-yellow-200" />
-                <span>Copied to Clipboard!</span>
-              </>
-            ) : (
-              <>
-                <Copy className="w-3.5 h-3.5" />
-                <span>Share Split Breakdown</span>
-              </>
-            )}
-          </button>
-        </div>
-      </div>
+      )}
     </div>
   );
 };

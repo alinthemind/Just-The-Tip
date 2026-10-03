@@ -19,6 +19,10 @@ export interface SampleReceipt {
   notes: string;
 }
 
+// Receipt text is embedded in SVG markup, which must be valid XML to render as an <img>
+const escapeXml = (str: string) =>
+  str.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+
 function createReceiptSvg(
   sampleId: string,
   restaurant: string,
@@ -37,7 +41,7 @@ function createReceiptSvg(
     .map(
       (item) => `
       <div style="display:flex; justify-content:space-between; margin-bottom:4px; font-size:12px; font-family:'Courier New', Courier, monospace;">
-        <span>${item.qty}x ${item.name}</span>
+        <span>${item.qty}x ${escapeXml(item.name)}</span>
         <span>${currencySym}${item.price.toFixed(2)}</span>
       </div>`
     )
@@ -47,7 +51,7 @@ function createReceiptSvg(
     .map(
       (s) => `
       <div style="font-size:12px; margin-bottom:3px; display:flex; justify-content:space-between; color:#b45309; font-weight:600;">
-        <span>${s.name.toUpperCase()}:</span>
+        <span>${escapeXml(s.name.toUpperCase())}:</span>
         <span>${currencySym}${s.amount.toFixed(2)}</span>
       </div>`
     )
@@ -68,8 +72,8 @@ function createReceiptSvg(
     <foreignObject x="35" y="35" width="310" height="470">
       <div xmlns="http://www.w3.org/1999/xhtml" style="font-family:'Courier New', Courier, monospace; color:#18181b; line-height:1.3;">
         <div style="text-align:center; margin-bottom:12px;">
-          <div style="font-size:15px; font-weight:bold; letter-spacing:0.5px; text-transform:uppercase;">${restaurant}</div>
-          <div style="font-size:11px; color:#52525b; margin-top:2px;">${cityCountry}</div>
+          <div style="font-size:15px; font-weight:bold; letter-spacing:0.5px; text-transform:uppercase;">${escapeXml(restaurant)}</div>
+          <div style="font-size:11px; color:#52525b; margin-top:2px;">${escapeXml(cityCountry)}</div>
           <div style="font-size:10px; color:#71717a; margin-top:2px;">Date: ${date}</div>
           <div style="border-bottom:1px dashed #a1a1aa; margin:10px 0;"></div>
         </div>
@@ -110,7 +114,7 @@ function createReceiptSvg(
         ${
           extraFooter
             ? `<div style="font-size:10px; text-align:center; color:#52525b; margin-top:14px; border-top:1px dashed #d4d4d8; padding-top:8px;">
-                ${extraFooter}
+                ${escapeXml(extraFooter)}
                </div>`
             : `<div style="font-size:10px; text-align:center; color:#71717a; margin-top:14px;">
                 *** THANK YOU FOR DINING WITH US ***

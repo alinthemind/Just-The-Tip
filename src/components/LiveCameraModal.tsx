@@ -1,5 +1,5 @@
 import React, { useRef, useState, useEffect } from 'react';
-import { Camera, X, RefreshCw, AlertCircle } from 'lucide-react';
+import { X, RefreshCw, AlertCircle, SwitchCamera } from 'lucide-react';
 
 interface LiveCameraModalProps {
   isOpen: boolean;
@@ -86,96 +86,81 @@ export const LiveCameraModal: React.FC<LiveCameraModalProps> = ({ isOpen, onClos
 
   if (!isOpen) return null;
 
+  const corner = 'absolute w-8 h-8 border-white/90';
+
   return (
-    <div className="fixed inset-0 z-50 bg-black/90 flex flex-col items-center justify-between p-4 sm:p-6 backdrop-blur-sm animate-in fade-in">
-      {/* Top Header */}
-      <div className="w-full max-w-lg flex items-center justify-between text-white z-10">
-        <div className="flex items-center gap-2">
-          <Camera className="w-5 h-5 text-emerald-400" />
-          <span className="font-semibold text-sm">Align Receipt Within Frame</span>
-        </div>
+    <div className="fixed inset-0 z-50 bg-black flex flex-col items-center justify-between p-4 sm:p-6 animate-in fade-in">
+      {/* Top bar */}
+      <div className="w-full max-w-lg flex items-center justify-end text-white z-10">
         <button
+          type="button"
           onClick={() => {
             stopCamera();
             onClose();
           }}
-          className="p-2 rounded-full bg-white/10 hover:bg-white/20 text-white transition-colors"
+          className="w-9 h-9 rounded-full bg-white/15 hover:bg-white/25 text-white flex items-center justify-center transition-colors cursor-pointer"
           aria-label="Close camera"
         >
           <X className="w-5 h-5" />
         </button>
       </div>
 
-      {/* Viewfinder Area */}
-      <div className="relative w-full max-w-lg aspect-[3/4] max-h-[70vh] rounded-2xl overflow-hidden bg-zinc-950 border-2 border-white/20 shadow-2xl flex items-center justify-center my-auto">
+      {/* Viewfinder */}
+      <div className="relative w-full max-w-lg aspect-[3/4] max-h-[70vh] rounded-[20px] overflow-hidden bg-zinc-950 flex items-center justify-center my-auto">
         {cameraError ? (
           <div className="p-6 text-center text-white max-w-xs">
-            <AlertCircle className="w-10 h-10 text-rose-400 mx-auto mb-3" />
-            <p className="text-sm font-medium mb-4">{cameraError}</p>
+            <AlertCircle className="w-10 h-10 text-[#ff453a] mx-auto mb-3" />
+            <p className="text-[15px] text-white/80 mb-5">{cameraError}</p>
             <button
+              type="button"
               onClick={() => startCamera(facingMode)}
-              className="px-4 py-2 bg-emerald-600 hover:bg-emerald-500 rounded-lg text-xs font-semibold text-white"
+              aria-label="Try again"
+              className="w-11 h-11 rounded-full bg-white/15 hover:bg-white/25 flex items-center justify-center mx-auto cursor-pointer"
             >
-              Try Again
+              <RefreshCw className="w-5 h-5" />
             </button>
           </div>
         ) : (
           <>
-            <video
-              ref={videoRef}
-              playsInline
-              muted
-              autoPlay
-              className="w-full h-full object-cover"
-            />
+            <video ref={videoRef} playsInline muted autoPlay className="w-full h-full object-cover" />
 
-            {/* Document Guide Frame Overlay */}
-            <div className="absolute inset-6 border border-pink-400/50 rounded-2xl pointer-events-none flex flex-col justify-between p-3">
-              <div className="flex justify-between">
-                <div className="w-6 h-6 border-t-2 border-l-2 border-pink-400 -mt-1 -ml-1"></div>
-                <div className="w-6 h-6 border-t-2 border-r-2 border-pink-400 -mt-1 -mr-1"></div>
-              </div>
-              <div className="text-center">
-                <span className="text-xs bg-black/60 text-pink-200 px-3 py-1 rounded-full backdrop-blur-sm font-mono border border-pink-500/30">
-                  Align receipt flat and clear
-                </span>
-              </div>
-              <div className="flex justify-between">
-                <div className="w-6 h-6 border-b-2 border-l-2 border-pink-400 -mb-1 -ml-1"></div>
-                <div className="w-6 h-6 border-b-2 border-r-2 border-pink-400 -mb-1 -mr-1"></div>
-              </div>
+            {/* Document corners */}
+            <div className="absolute inset-8 pointer-events-none">
+              <span className={`${corner} top-0 left-0 border-t-[3px] border-l-[3px] rounded-tl-[14px]`} />
+              <span className={`${corner} top-0 right-0 border-t-[3px] border-r-[3px] rounded-tr-[14px]`} />
+              <span className={`${corner} bottom-0 left-0 border-b-[3px] border-l-[3px] rounded-bl-[14px]`} />
+              <span className={`${corner} bottom-0 right-0 border-b-[3px] border-r-[3px] rounded-br-[14px]`} />
             </div>
-
-            {/* Subtle scanning laser line effect with Instagram gradient */}
-            <div className="absolute left-6 right-6 h-0.5 ig-gradient shadow-[0_0_8px_#E1306C] animate-pulse opacity-90 top-1/2 pointer-events-none" />
           </>
         )}
       </div>
 
-      {/* Bottom Controls */}
+      {/* Controls */}
       <div className="w-full max-w-lg flex items-center justify-around py-4 z-10">
-        <button
-          onClick={toggleFacingMode}
-          disabled={!!cameraError || isStarting}
-          className="p-3 rounded-full bg-white/10 hover:bg-white/20 text-white transition-colors disabled:opacity-30 cursor-pointer"
-          title="Flip Camera"
-        >
-          <RefreshCw className="w-6 h-6" />
-        </button>
+        <div className="w-12" />
 
-        {/* Big Shutter Button (Instagram camera story style) */}
+        {/* Shutter */}
         <button
+          type="button"
           onClick={handleCapture}
           disabled={!!cameraError || isStarting}
-          className="w-20 h-20 rounded-full p-1 ig-gradient hover:opacity-95 active:scale-95 transition-all shadow-xl shadow-pink-500/40 flex items-center justify-center disabled:opacity-40 cursor-pointer"
+          className="w-[76px] h-[76px] rounded-full border-[4px] border-white flex items-center justify-center disabled:opacity-40 cursor-pointer group"
           title="Snap Photo"
+          aria-label="Snap Photo"
         >
-          <div className="w-full h-full rounded-full border-2 border-white bg-white/20 flex items-center justify-center">
-            <Camera className="w-8 h-8 text-white drop-shadow-sm" />
-          </div>
+          <span className="w-[62px] h-[62px] rounded-full bg-white group-active:scale-90 transition-transform" />
         </button>
 
-        <div className="w-12"></div>
+        <button
+          type="button"
+          onClick={toggleFacingMode}
+          disabled={!!cameraError || isStarting}
+          className="w-12 h-12 rounded-full bg-white/15 hover:bg-white/25 text-white flex items-center justify-center transition-colors disabled:opacity-30 cursor-pointer"
+          title="Flip Camera"
+          aria-label="Flip Camera"
+        >
+          <SwitchCamera className="w-6 h-6" />
+        </button>
       </div>
     </div>
   );

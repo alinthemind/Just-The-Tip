@@ -1,8 +1,10 @@
 import React from 'react';
 import { ActiveTab, UserLocation } from '../types';
-import { MapPin, Navigation, Receipt, Calculator, Globe2, RefreshCw, Sparkles, Sun, Moon } from 'lucide-react';
+import { ScanLine, Calculator, Globe2, RotateCw, Sun, Moon, Receipt, Navigation, MapPin, Camera, Wifi } from 'lucide-react';
+import type { LucideIcon } from 'lucide-react';
 import { MushroomTipLogo } from './InstagramIcon';
 import { LanguageSelector } from './LanguageSelector';
+import { IconButton, Segmented } from './ui';
 import { LanguageCode, getTranslation } from '../data/translations';
 
 interface HeaderProps {
@@ -18,6 +20,22 @@ interface HeaderProps {
   onToggleTheme: () => void;
 }
 
+const TABS: Array<{ id: ActiveTab; icon: LucideIcon; labelKey: string }> = [
+  { id: 'scanner', icon: ScanLine, labelKey: 'navScan' },
+  { id: 'manual', icon: Calculator, labelKey: 'navCalc' },
+  { id: 'guide', icon: Globe2, labelKey: 'navGuide' },
+];
+
+/** Small glyph telling where the current location came from */
+const SOURCE_ICON: Record<NonNullable<UserLocation['source']>, LucideIcon> = {
+  receipt: Receipt,
+  'photo-gps': Camera,
+  gps: Navigation,
+  ip: Wifi,
+  default: MapPin,
+  manual: MapPin,
+};
+
 export const Header: React.FC<HeaderProps> = ({
   activeTab,
   setActiveTab,
@@ -31,201 +49,81 @@ export const Header: React.FC<HeaderProps> = ({
   onToggleTheme,
 }) => {
   const t = (key: string) => getTranslation(currentLang, key);
+  const SourceIcon = SOURCE_ICON[userLocation.source || (userLocation.isGps ? 'gps' : 'default')];
 
   return (
     <>
-      {/* Top Navbar */}
-      <header className="sticky top-0 z-40 bg-white/95 dark:bg-zinc-950/95 backdrop-blur-xl border-b border-zinc-100 dark:border-zinc-800/80 shadow-[0_1px_3px_rgba(0,0,0,0.03)] dark:shadow-none pt-safe transition-colors">
-        <div className="max-w-5xl mx-auto px-3 sm:px-6">
-          <div className="flex items-center justify-between py-2 sm:py-2.5 gap-1 sm:gap-2 flex-nowrap w-full">
-            {/* Brand Logo & Title */}
-            <div className="flex items-center gap-1.5 sm:gap-2.5 flex-shrink-0">
-              <MushroomTipLogo size={26} />
-              <div>
-                <div className="flex items-center gap-1">
-                  <h1 className="font-extrabold text-zinc-900 dark:text-zinc-100 text-sm xs:text-base sm:text-lg tracking-tight leading-none whitespace-nowrap">
-                    Just the <span className="ig-gradient-text font-black">Tip</span>
-                  </h1>
-                </div>
-                <p className="text-[10px] text-zinc-400 dark:text-zinc-500 font-medium hidden md:block mt-0.5">
-                  {t('appTagline')}
-                </p>
-              </div>
-            </div>
-
-            {/* Actions: Location Pill, Refresh GPS, Language Selector, & Theme Switcher (Strictly 1 single aligned line on mobile, Theme toggle on upper right) */}
-            <div className="flex items-center gap-1 sm:gap-1.5 flex-nowrap justify-end flex-shrink-0">
-              {/* Location Pill */}
-              <button
-                onClick={onOpenLocationPicker}
-                className="group flex items-center gap-1 sm:gap-1.5 px-1.5 xs:px-2 sm:px-2.5 py-1.5 rounded-full border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 hover:border-pink-300 dark:hover:border-pink-500/50 hover:shadow-xs active:scale-95 transition-all text-xs font-semibold text-zinc-800 dark:text-zinc-200 shadow-[0_1px_2px_rgba(0,0,0,0.04)] cursor-pointer flex-shrink-0"
-                title={t('changeLocation')}
-              >
-                <div className="ig-story-ring-sm flex-shrink-0">
-                  <span className="w-4 h-4 sm:w-5 sm:h-5 rounded-full bg-white dark:bg-zinc-900 flex items-center justify-center text-xs">
-                    {userLocation.flag}
-                  </span>
-                </div>
-                <div className="flex items-center gap-1 max-w-[42px] xs:max-w-[75px] sm:max-w-[140px] truncate text-left">
-                  <span className="truncate text-[11px] sm:text-xs font-bold text-zinc-900 dark:text-zinc-100">
-                    {userLocation.city ? userLocation.city : userLocation.countryName}
-                  </span>
-                  {userLocation.source === 'receipt' && (
-                    <span className="text-[8px] tracking-wider uppercase font-extrabold px-1.5 py-0.2 rounded-full bg-pink-100 dark:bg-pink-950/60 text-pink-700 dark:text-pink-300 hidden xs:inline-block">
-                      Receipt
-                    </span>
-                  )}
-                </div>
-                <MapPin className="w-3 h-3 sm:w-3.5 sm:h-3.5 text-[#E1306C] flex-shrink-0 group-hover:scale-110 transition-transform" />
-              </button>
-
-              {/* Refresh Button (Circular arrows only) */}
-              <button
-                onClick={onRefreshGps}
-                disabled={isLocating}
-                className="p-1.5 sm:p-2 rounded-full border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 hover:bg-pink-50/40 dark:hover:bg-zinc-800 hover:border-pink-300 dark:hover:border-pink-500/50 active:scale-95 text-zinc-700 dark:text-zinc-300 hover:text-[#E1306C] dark:hover:text-[#E1306C] transition-all disabled:opacity-50 shadow-[0_1px_2px_rgba(0,0,0,0.04)] cursor-pointer flex-shrink-0"
-                title="Refresh & Reset (GPS & Network Location)"
-                aria-label="Refresh & Reset"
-              >
-                <RefreshCw className={`w-3.5 h-3.5 text-[#E1306C] ${isLocating ? 'animate-spin' : ''}`} />
-              </button>
-
-              {/* Language Selector Dropdown */}
-              <LanguageSelector currentLang={currentLang} onSelectLang={onSelectLang} />
-
-              {/* Theme Toggle Button placed on the far upper right for user to choose to change to light mode */}
-              <button
-                onClick={onToggleTheme}
-                className="flex items-center gap-1 sm:gap-1.5 px-2 sm:px-2.5 py-1.5 rounded-full border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 hover:bg-zinc-100 dark:hover:bg-zinc-800 hover:border-pink-300 dark:hover:border-pink-500/50 active:scale-95 text-zinc-700 dark:text-zinc-200 transition-all shadow-[0_1px_2px_rgba(0,0,0,0.04)] cursor-pointer flex-shrink-0"
-                title={theme === 'dark' ? 'Change to light mode' : 'Change to dark mode'}
-                aria-label={theme === 'dark' ? 'Change to light mode' : 'Change to dark mode'}
-              >
-                {theme === 'dark' ? (
-                  <>
-                    <Sun className="w-3.5 h-3.5 text-amber-400 group-hover:rotate-45 transition-transform" />
-                    <span className="text-[11px] font-bold text-zinc-300 hidden sm:inline">Light</span>
-                  </>
-                ) : (
-                  <>
-                    <Moon className="w-3.5 h-3.5 text-zinc-700 group-hover:-rotate-12 transition-transform" />
-                    <span className="text-[11px] font-bold text-zinc-700 hidden sm:inline">Dark</span>
-                  </>
-                )}
-              </button>
-            </div>
+      {/* Top bar */}
+      <header className="sticky top-0 z-40 bg-grouped/80 dark:bg-black/75 backdrop-blur-xl backdrop-saturate-150 border-b border-black/[0.06] dark:border-white/[0.08] pt-safe transition-colors">
+        <div className="max-w-5xl mx-auto px-4 sm:px-6 h-14 flex items-center gap-2">
+          <div className="flex items-center gap-2 flex-shrink-0">
+            <MushroomTipLogo size={22} />
+            <h1 className="font-semibold text-[17px] tracking-tight text-zinc-900 dark:text-white whitespace-nowrap hidden xs:block sm:block">
+              Just the <span className="text-accent">Tip</span>
+            </h1>
           </div>
 
-          {/* Desktop & Tablet Navigation Tabs */}
-          <nav className="hidden sm:flex space-x-1 border-t border-zinc-100 dark:border-zinc-800/80 -mb-px py-1">
-            <button
-              onClick={() => setActiveTab('scanner')}
-              className={`flex items-center gap-2 px-3.5 py-2 text-xs sm:text-sm font-semibold rounded-xl transition-all whitespace-nowrap cursor-pointer ${
-                activeTab === 'scanner'
-                  ? 'ig-gradient text-white shadow-md shadow-pink-500/20'
-                  : 'text-zinc-600 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-100 hover:bg-zinc-100/70 dark:hover:bg-zinc-800/70'
-              }`}
-            >
-              <Receipt className="w-4 h-4" />
-              {t('navScan')}
-            </button>
+          {/* Desktop tabs */}
+          <div className="hidden sm:flex flex-1 justify-center">
+            <Segmented<ActiveTab>
+              className="w-[380px]"
+              value={activeTab}
+              onChange={setActiveTab}
+              options={TABS.map((tab) => ({ value: tab.id, icon: tab.icon, label: t(tab.labelKey) }))}
+            />
+          </div>
+          <div className="flex-1 sm:hidden" />
 
+          {/* Location + actions */}
+          <div className="flex items-center gap-1.5 flex-shrink-0">
             <button
-              onClick={() => setActiveTab('manual')}
-              className={`flex items-center gap-2 px-3.5 py-2 text-xs sm:text-sm font-semibold rounded-xl transition-all whitespace-nowrap cursor-pointer ${
-                activeTab === 'manual'
-                  ? 'ig-gradient text-white shadow-md shadow-pink-500/20'
-                  : 'text-zinc-600 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-100 hover:bg-zinc-100/70 dark:hover:bg-zinc-800/70'
-              }`}
+              type="button"
+              onClick={onOpenLocationPicker}
+              title={t('changeLocation')}
+              className="h-9 inline-flex items-center gap-1.5 pl-1.5 pr-3 rounded-full bg-[#767680]/12 dark:bg-[#767680]/24 hover:bg-[#767680]/20 active:scale-95 transition-all cursor-pointer max-w-[150px] sm:max-w-[200px]"
             >
-              <Calculator className="w-4 h-4" />
-              {t('navCalc')}
+              <span className="w-6 h-6 rounded-full bg-white dark:bg-elevated flex items-center justify-center text-[15px] leading-none flex-shrink-0">
+                {userLocation.flag}
+              </span>
+              <span className="text-[14px] font-medium text-zinc-900 dark:text-white truncate">
+                {userLocation.city || userLocation.countryName}
+              </span>
+              <SourceIcon className="w-3.5 h-3.5 text-accent flex-shrink-0" />
             </button>
-
-            <button
-              onClick={() => setActiveTab('guide')}
-              className={`flex items-center gap-2 px-3.5 py-2 text-xs sm:text-sm font-semibold rounded-xl transition-all whitespace-nowrap cursor-pointer ${
-                activeTab === 'guide'
-                  ? 'ig-gradient text-white shadow-md shadow-pink-500/20'
-                  : 'text-zinc-600 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-100 hover:bg-zinc-100/70 dark:hover:bg-zinc-800/70'
-              }`}
-            >
-              <Globe2 className="w-4 h-4" />
-              {t('navGuide')}
-            </button>
-          </nav>
+            <IconButton icon={RotateCw} label={t('refreshLocation')} onClick={onRefreshGps} disabled={isLocating} spin={isLocating} />
+            <LanguageSelector currentLang={currentLang} onSelectLang={onSelectLang} />
+            <IconButton
+              icon={theme === 'dark' ? Sun : Moon}
+              label={theme === 'dark' ? 'Light' : 'Dark'}
+              onClick={onToggleTheme}
+            />
+          </div>
         </div>
       </header>
 
-      {/* Mobile Fixed Bottom App Bar */}
-      <div className="sm:hidden fixed bottom-0 left-0 right-0 z-40 bg-white/95 dark:bg-zinc-950/95 backdrop-blur-xl border-t border-zinc-200 dark:border-zinc-800/80 pb-safe shadow-[0_-4px_12px_rgba(0,0,0,0.05)] transition-colors">
-        <div className="grid grid-cols-3 px-2 py-1.5">
-          <button
-            onClick={() => setActiveTab('scanner')}
-            className={`flex flex-col items-center justify-center py-1 rounded-xl transition-all active:scale-95 ${
-              activeTab === 'scanner' ? 'text-[#E1306C]' : 'text-zinc-400 dark:text-zinc-500 hover:text-zinc-600 dark:hover:text-zinc-300'
-            }`}
-          >
-            <div
-              className={`p-1.5 rounded-xl ${
-                activeTab === 'scanner' ? 'ig-gradient text-white shadow-sm shadow-pink-500/30' : ''
-              }`}
-            >
-              <Receipt className="w-5 h-5" />
-            </div>
-            <span
-              className={`text-[10px] mt-0.5 font-bold ${
-                activeTab === 'scanner' ? 'ig-gradient-text' : ''
-              }`}
-            >
-              {t('navScan')}
-            </span>
-          </button>
-
-          <button
-            onClick={() => setActiveTab('manual')}
-            className={`flex flex-col items-center justify-center py-1 rounded-xl transition-all active:scale-95 ${
-              activeTab === 'manual' ? 'text-[#E1306C]' : 'text-zinc-400 dark:text-zinc-500 hover:text-zinc-600 dark:hover:text-zinc-300'
-            }`}
-          >
-            <div
-              className={`p-1.5 rounded-xl ${
-                activeTab === 'manual' ? 'ig-gradient text-white shadow-sm shadow-pink-500/30' : ''
-              }`}
-            >
-              <Calculator className="w-5 h-5" />
-            </div>
-            <span
-              className={`text-[10px] mt-0.5 font-bold ${
-                activeTab === 'manual' ? 'ig-gradient-text' : ''
-              }`}
-            >
-              {t('navCalc')}
-            </span>
-          </button>
-
-          <button
-            onClick={() => setActiveTab('guide')}
-            className={`flex flex-col items-center justify-center py-1 rounded-xl transition-all active:scale-95 ${
-              activeTab === 'guide' ? 'text-[#E1306C]' : 'text-zinc-400 dark:text-zinc-500 hover:text-zinc-600 dark:hover:text-zinc-300'
-            }`}
-          >
-            <div
-              className={`p-1.5 rounded-xl ${
-                activeTab === 'guide' ? 'ig-gradient text-white shadow-sm shadow-pink-500/30' : ''
-              }`}
-            >
-              <Globe2 className="w-5 h-5" />
-            </div>
-            <span
-              className={`text-[10px] mt-0.5 font-bold ${
-                activeTab === 'guide' ? 'ig-gradient-text' : ''
-              }`}
-            >
-              {t('navGuide')}
-            </span>
-          </button>
+      {/* Mobile tab bar */}
+      <nav className="sm:hidden fixed bottom-0 left-0 right-0 z-40 bg-white/80 dark:bg-elevated/80 backdrop-blur-xl backdrop-saturate-150 border-t border-black/[0.08] dark:border-white/[0.08] pb-safe transition-colors">
+        <div className="grid grid-cols-3 pt-1.5">
+          {TABS.map((tab) => {
+            const Icon = tab.icon;
+            const active = activeTab === tab.id;
+            return (
+              <button
+                key={tab.id}
+                type="button"
+                onClick={() => setActiveTab(tab.id)}
+                aria-current={active ? 'page' : undefined}
+                className={`flex flex-col items-center gap-0.5 py-1 cursor-pointer active:scale-95 transition-all ${
+                  active ? 'text-accent' : 'text-zinc-400 dark:text-zinc-500'
+                }`}
+              >
+                <Icon className="w-6 h-6" strokeWidth={active ? 2.3 : 1.8} />
+                <span className="text-[10px] font-medium">{t(tab.labelKey)}</span>
+              </button>
+            );
+          })}
         </div>
-      </div>
+      </nav>
     </>
   );
 };
