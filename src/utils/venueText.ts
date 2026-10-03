@@ -68,6 +68,27 @@ export function tippingSentences(text: string): string[] {
   return sentences(text).filter((s) => TIP_RE.test(s)).slice(0, 2).map((s) => clip(s));
 }
 
+// Talk about the service and staff
+const SERVICE_RE =
+  /\b(service|staff|server|waiter|waitress|waitstaff|bartender|host(ess)?|manager|attentive|friendly|rude|welcom(e|ing)|helpful|ignored|wait(ed|ing)?|servicio|personal|camarer[oa]|meser[oa]|serveur|serveuse|personnel|accueil|bedienung|kellner|personale|cameriere|atendimento|empregad[oa]|gar[cç]om)\b|服务|服務|店员|店員|服务员|服務生|态度|態度|接客|サービス|スタッフ|직원|서비스|친절|พนักงาน|บริการ/i;
+// Something went wrong (any topic: service, food, billing, cleanliness)
+const ISSUE_RE =
+  /\b(rude|slow|ignored|long\s+wait|waited\s+(over\s+)?\d+|forgot|forgotten|wrong\s+(order|dish|bill)|overcharg\w*|charged\s+(us\s+)?(for|twice|extra)|hidden\s+(fee|charge)|cold\s+food|food\s+was\s+cold|dirty|unfriendly|unprofessional|never\s+came|terrible|awful|horrible|worst|disappoint\w*|mistake|sick|grosero|lento|malo|horrible|sucio|lent|sale|pire|mauvais|d[ée]cevant|langsam|unfreundlich|schlecht|scortese|pessimo|lento|sporco|ruim|demorado)\b|态度差|態度差|太慢|等了很久|脏|髒|失望|难吃|難吃|遅い|最悪|不親切|待たされ|불친절|느리|별로|실망|ช้า|แย่|ไม่ดี|ผิดหวัง/i;
+const PRAISE_RE =
+  /\b(friendly|attentive|great|excellent|amazing|wonderful|helpful|quick|fast|lovely|welcoming|professional|kind|best|fantastic|outstanding|warm|polite|amable|excelente|atento|r[aá]pido|sympa|accueillant|aimable|freundlich|aufmerksam|toll|gentile|ottimo|cordiale|simp[aá]tico|[oó]timo)\b|热情|熱情|周到|很好|亲切|親切|丁寧|最高|친절|최고|좋았|ประทับใจ|ดีมาก|น่ารัก/i;
+
+/** What reviews say about the service, split into praise and reported issues */
+export function serviceSentences(text: string): { praise: string[]; issues: string[] } {
+  const praise: string[] = [];
+  const issues: string[] = [];
+  for (const s of sentences(text)) {
+    if (TIP_RE.test(s)) continue; // shown with the tipping comments
+    if (ISSUE_RE.test(s)) issues.push(clip(s));
+    else if (SERVICE_RE.test(s) && PRAISE_RE.test(s)) praise.push(clip(s));
+  }
+  return { praise: praise.slice(0, 2), issues: issues.slice(0, 2) };
+}
+
 /** Sentences of a review that mention a happy hour, a pricing special or a deal */
 export function offerSentences(text: string): Offers {
   const out: Offers = { happyHours: [], specials: [], deals: [] };
@@ -113,4 +134,11 @@ export function receiptOffers(rawText: string): Offers {
   }
   const unique = (xs: string[]) => [...new Set(xs)].slice(0, 3);
   return { happyHours: unique(found.happyHours), specials: unique(found.specials), deals: unique(found.deals) };
+}
+
+/** Tipping lines printed on a receipt: service charges, suggested gratuity, "tips appreciated"... */
+export function receiptTipLines(rawText: string): string[] {
+  const lines = (rawText || '').split('\n').map((l) => l.trim()).filter((l) => l.length > 3);
+  const found = lines.filter((l) => TIP_RE.test(l) || /suggested|gratuity\s+guide|tips?\s+appreciated/i.test(l));
+  return [...new Set(found.map((l) => clip(l, 120)))].slice(0, 4);
 }

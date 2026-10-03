@@ -5,7 +5,7 @@ import { getTippingRuleForCountry, getServiceTiers, serviceAdvice, SERVICE_TYPES
 import { prefetchOcrModels, runClientOcr } from './utils/ocr';
 import { shrinkForUpload } from './utils/uploadImage';
 import { cloudAiAvailable } from './utils/serverConfig';
-import { receiptOffers } from './utils/venueText';
+import { receiptOffers, receiptTipLines } from './utils/venueText';
 import { buildFallbackReceiptData, finalizeScanResult } from './utils/receiptResult';
 import { primeVoices, speakInLanguage } from './utils/speech';
 import { Header } from './components/Header';
@@ -551,9 +551,12 @@ export default function App() {
         aiNotice: data.aiNotice,
         isFallback: data.isFallback,
         needsReview: Boolean(data.needsReview) || (preTaxSubtotal <= 0 && total <= 0),
+        venueAddress: clientOcrResult?.address,
+        venuePhone: clientOcrResult?.phone,
         latitude: candidateLat,
         longitude: candidateLon,
         receiptOffers: receiptOffers(clientOcrResult?.rawText || ''),
+        receiptTipNotes: receiptTipLines(clientOcrResult?.rawText || ''),
         scannedAt: Date.now(),
       };
 

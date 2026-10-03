@@ -67,9 +67,14 @@ export interface ScannedReceiptData {
   isFallback?: boolean;
   /** Nothing could be read off the receipt; the user has to enter the amounts */
   needsReview?: boolean;
+  /** Venue street address and phone number as printed on the receipt, to find it on Google */
+  venueAddress?: string;
+  venuePhone?: string;
   /** Where the receipt was scanned (photo GPS or the phone), to find the venue on Google */
   latitude?: number | null;
   longitude?: number | null;
+  /** Tipping lines printed on the receipt (service charge, suggested gratuity) */
+  receiptTipNotes?: string[];
   /** Happy hours, pricing specials and deals printed on the receipt */
   receiptOffers?: { happyHours: string[]; specials: string[]; deals: string[] };
   scannedAt: number;

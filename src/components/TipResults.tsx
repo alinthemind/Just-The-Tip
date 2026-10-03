@@ -33,7 +33,7 @@ import { TipPanel, TierKey } from './TipPanel';
 import { formatMoney, RoundMode } from '../utils/tipMath';
 import { localizedCountryName } from '../utils/countryName';
 import { useEtiquette } from '../data/etiquette';
-import { RateOnGoogle, useVenue, VenueDeals, VenueReviews } from './VenueSection';
+import { RateOnGoogle, useVenue, VenueDeals, VenueSummary } from './VenueSection';
 
 interface TipResultsProps {
   receipt: ScannedReceiptData;
@@ -269,8 +269,8 @@ export const TipResults: React.FC<TipResultsProps> = ({
         }
       />
 
-      {/* The venue on Google, then deals: happy hours and specials from the receipt and from reviews */}
-      <VenueReviews venue={venue} t={t} />
+      {/* The venue (receipt details plus Google: rating, service, tip info), then happy hours, specials and deals */}
+      <VenueSummary receipt={receipt} venue={venue} t={t} />
       <VenueDeals receipt={receipt} venue={venue} t={t} />
 
       {/* Local customs (collapsed) */}

@@ -3,6 +3,10 @@ import { ServiceType } from '../data/tippingCulture';
 
 export interface ParsedReceiptTextResult {
   merchantName?: string;
+  /** Street address line as printed (to find the venue on a map) */
+  address?: string;
+  /** Venue phone number as printed */
+  phone?: string;
   city?: string;
   state?: string;
   countryCode?: string;
@@ -161,7 +165,40 @@ const GENERIC_HEADER =
 
 // Street-address lines near the top (not the restaurant's name)
 const ADDRESS_RE =
-  /\b(street|st\.|avenue|ave\.?|road|rd\.|blvd|boulevard|lane|via|viale|rue|avenue|calle|avenida|av\.|stra(ß|ss)e|str\.|platz|plaza|square|floor)\b|[市区區县縣路街道号號巷弄]|丁目|番地|[구로길동]\s*\d|ถนน|ซอย|แขวง|เขต/i;
+  /\b(street|st\.?|avenue|ave\.?|road|rd\.?|blvd|boulevard|lane|ln|drive|dr|way|broadway|place|pl|court|ct|parkway|pkwy|highway|hwy|suite|ste|via|viale|corso|piazza|rue|calle|avenida|av\.|carrera|col\.|colonia|stra(ß|ss)e|str\.|weg|gasse|allee|platz|plaza|square|floor)\b|[市区區县縣路街道号號巷弄]|丁目|番地|[구로길동]\s*\d|ถนน|ซอย|แขวง|เขต/i;
+// Phone numbers: labelled ("Tel", "电话") or written in a phone format, never dates or order numbers
+const PHONE_LABEL_RE = /\b(tel|phone|ph|telephone|t[ée]l[ée]phone|tel[ée]fono|telefon|fon)\b\.?|电话|電話|☎|📞|전화|โทร/i;
+const PHONE_RE = /\+?\(?\d[\d\s().\-]{6,18}\d/g;
+const PHONE_FORMAT_RE = /\(\d{2,4}\)\s*\d{3,4}[-\s.]?\d{3,4}|\+\d{1,3}[\s.-]?\(?\d|^\d{2,4}[-\s.]\d{3,4}[-\s.]\d{3,4}$/;
+const DATE_RE = /\d{4}[-/.]\d{1,2}[-/.]\d{1,2}|\d{1,2}[-/.]\d{1,2}[-/.]\d{2,4}/;
+
+function pickPhone(lines: string[]): string | undefined {
+  for (const line of lines.slice(0, 14)) {
+    const labelled = PHONE_LABEL_RE.test(line);
+    for (const m of line.match(PHONE_RE) || []) {
+      const candidate = m.trim();
+      const digits = candidate.replace(/\D/g, '');
+      if (digits.length < 8 || digits.length > 15 || DATE_RE.test(candidate)) continue;
+      if (labelled || PHONE_FORMAT_RE.test(candidate)) return candidate;
+    }
+  }
+  return undefined;
+}
+
+/** The first street address line near the top (a number plus a street word, or a CJK/Thai address) */
+function pickAddress(lines: string[], merchantName: string): string | undefined {
+  for (const line of lines.slice(0, 10)) {
+    if (line === merchantName || line.length < 6 || PHONE_LABEL_RE.test(line) || DATE_RE.test(line)) continue;
+    if (TOTAL_RE.test(line) || SUBTOTAL_RE.test(line) || TAX_RE.test(line)) continue;
+    const letters = (line.match(/[\p{L}]/gu) || []).length;
+    if (letters / line.replace(/\s/g, '').length < 0.5) continue; // OCR noise
+    const cjkAddress = /[市区區县縣]/.test(line) && /[路街道号號巷弄]|丁目|番地/.test(line);
+    const thaiOrKorean = /ถนน|ซอย|แขวง|เขต|[구로길동]\s*\d|\d+\s*(번지|호)/.test(line);
+    if ((ADDRESS_RE.test(line) && /\d/.test(line)) || cjkAddress || thaiOrKorean) return line.slice(0, 90);
+  }
+  return undefined;
+}
+
 // Words that mark a line as the business name
 const BUSINESS_WORD_RE =
   /\b(restaurant|ristorante|trattoria|bistro|brasserie|caf[eé]|bar|pub|grill|kitchen|diner|tavern|steakhouse|osteria|taquer[ií]a|gasthaus|club|cabaret|lounge|eatery|house)\b|店|餐|厨|廚|酒家|酒楼|酒樓|食堂|屋|亭|館|馆|식당|가든|ร้าน/i;
@@ -474,6 +511,8 @@ export function parseReceiptText(text: string): ParsedReceiptTextResult {
 
   return {
     merchantName,
+    address: pickAddress(lines, merchantName),
+    phone: pickPhone(lines),
     city: detectedCity,
     state: detectedState,
     countryCode: detectedCountry,

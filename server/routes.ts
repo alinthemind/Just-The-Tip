@@ -466,8 +466,9 @@ app.get('/api/config', (_req: Request, res: Response) => {
 // deals and happy hours itself.
 app.post('/api/venue', async (req: Request, res: Response) => {
   if (!mapsKey) return res.status(404).json({ error: 'Venue lookup is not configured' });
-  const { name, city, latitude, longitude, lang } = req.body || {};
-  if (typeof name !== 'string' || !name.trim()) return res.status(400).json({ error: 'A venue name is required' });
+  // query: the venue as the receipt describes it (name with address or city, a phone number, or an address)
+  const { query, latitude, longitude, lang } = req.body || {};
+  if (typeof query !== 'string' || !query.trim()) return res.status(400).json({ error: 'A search query is required' });
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort(), 6000);
   try {
@@ -481,10 +482,12 @@ app.post('/api/venue', async (req: Request, res: Response) => {
         'X-Goog-FieldMask': [
           'places.id', 'places.displayName', 'places.formattedAddress', 'places.rating', 'places.userRatingCount',
           'places.googleMapsUri', 'places.googleMapsLinks', 'places.reviews', 'places.reviewSummary',
+          'places.primaryTypeDisplayName', 'places.priceLevel', 'places.editorialSummary', 'places.currentOpeningHours',
+          'places.regularOpeningHours', 'places.nationalPhoneNumber', 'places.websiteUri',
         ].join(','),
       },
       body: JSON.stringify({
-        textQuery: [name, city].filter(Boolean).join(' '),
+        textQuery: query.trim().slice(0, 200),
         languageCode: typeof lang === 'string' ? lang : 'en',
         pageSize: 1,
         ...(hasCoords ? { locationBias: { circle: { center: { latitude, longitude }, radius: 5000 } } } : {}),
@@ -499,13 +502,22 @@ app.post('/api/venue', async (req: Request, res: Response) => {
     if (!place) return res.json({ found: false });
     res.json({
       found: true,
-      name: place.displayName?.text || name,
+      name: place.displayName?.text,
       address: place.formattedAddress,
       rating: place.rating,
       ratingCount: place.userRatingCount,
       mapsUri: place.googleMapsUri,
       reviewsUri: place.googleMapsLinks?.reviewsUri || place.reviewSummary?.reviewsUri || place.googleMapsUri,
       writeReviewUri: place.googleMapsLinks?.writeAReviewUri || `https://search.google.com/local/writereview?placeid=${encodeURIComponent(place.id)}`,
+      type: place.primaryTypeDisplayName?.text,
+      // PRICE_LEVEL_INEXPENSIVE .. PRICE_LEVEL_VERY_EXPENSIVE -> 1..4
+      priceLevel: ['PRICE_LEVEL_INEXPENSIVE', 'PRICE_LEVEL_MODERATE', 'PRICE_LEVEL_EXPENSIVE', 'PRICE_LEVEL_VERY_EXPENSIVE'].indexOf(place.priceLevel) + 1 || undefined,
+      about: place.editorialSummary?.text,
+      openNow: place.currentOpeningHours?.openNow,
+      // Monday first, in the requested language (e.g. "Monday: 11:00 AM – 10:00 PM")
+      hours: place.regularOpeningHours?.weekdayDescriptions,
+      phone: place.nationalPhoneNumber,
+      website: place.websiteUri,
       summary: place.reviewSummary?.text?.text,
       summaryDisclosure: place.reviewSummary?.disclosureText?.text,
       reviews: (place.reviews || []).map((r: any) => ({
