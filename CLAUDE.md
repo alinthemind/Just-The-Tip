@@ -1,0 +1,45 @@
+# CLAUDE.md
+
+This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
+
+## Overview
+
+"Just the Tip" is a receipt-scanning tip calculator: the user photographs a receipt, and the app works out the pre-tax subtotal, figures out which country/city the restaurant is in, and suggests tip tiers based on local tipping etiquette. It was scaffolded in Google AI Studio (see `metadata.json`), which explains the `DISABLE_HMR` handling in `vite.config.ts`. Do not change that block.
+
+## Commands
+
+Dependencies are locked with Bun (`bun.lock`).
+
+- `bun install`: install dependencies
+- `npm run dev`: start the Express server (`tsx server.ts`) on `PORT` (default 3000), with Vite mounted as middleware for the frontend
+- `npm run build`: build the frontend to `dist/`
+- `NODE_ENV=production npm start`: serve the built `dist/` plus the API from the same Express server
+- `npm run lint`: type-check only (`tsc --noEmit`); there is no ESLint
+- There is no test suite.
+
+Copy `.env.example` to `.env` and set `GEMINI_API_KEY`. The app still runs without a working key; see the fallbacks below.
+
+## Architecture
+
+**One process, two halves.** `server.ts` is the whole backend: an Express app with the API routes, which also serves the React SPA (through Vite middleware in dev, or from `dist/` in production). The server imports `src/data/tippingCulture.ts` and `src/data/sampleReceipts.ts` directly, so those files are shared by client and server and must stay free of browser-only APIs.
+
+**API routes (`server.ts`):**
+- `POST /api/scan-receipt`: sends the base64 image to Gemini (`gemini-3.8-flash`) with a JSON `responseSchema`, then **recomputes the tip amounts on the server**. The tip basis is always the pre-tax subtotal (excluding tax, health/mandate surcharges, and any service charge already on the bill), never the total.
+- `POST /api/reverse-geocode`: tries Nominatim first (4s timeout), falls back to Gemini, then defaults to US.
+- `GET /api/ip-location`, `GET /api/culture/:countryCode`, `GET /api/countries`.
+
+**Fallbacks are deliberate.** If Gemini fails, or the image is an SVG demo receipt, `buildFallbackReceiptData()` builds the response from the client's OCR results plus the static tipping rules, and sets `isFallback` / `aiNotice`. Keep this path working whenever you change the response shape.
+
+**Client scan pipeline (`src/App.tsx` → `handleScanReceipt`):**
+1. Read EXIF GPS from the photo if present (`utils/exif.ts`) and reverse-geocode it.
+2. Run in-browser OCR with Tesseract (`utils/ocr.ts`, which has a 15s timeout; SVG samples are parsed as text directly), then regex-parse the text into merchant, city, subtotal, and surcharges (`utils/receiptParser.ts`).
+3. POST everything to `/api/scan-receipt` as `clientOcr` context.
+4. Decide the final location in this priority order: sample receipt info > location printed on the receipt (Gemini, then client OCR) > photo EXIF GPS > the phone's live GPS.
+
+**Tipping data.** `src/data/tippingCulture.ts` (`COUNTRY_TIPPING_DATABASE`, `getTippingRuleForCountry`) is the source of truth for each country's percentages, currency, and advice. Gemini's tiers override it when the AI call succeeds.
+
+**State and persistence.** There is no router or state library; `App.tsx` holds all state and switches tabs (`scanner` / calculator / `guide`). `localStorage` keys use the `globaltip_` prefix (theme, language, and location in `utils/geolocation.ts`). Scan history is purged on mount on purpose, for privacy, so don't add history persistence.
+
+**i18n.** All strings live in `src/data/translations.ts` (`TRANSLATIONS[lang][key]`); `src/i18n/translations.ts` only re-exports them. Add new keys to every language, including `tlh` (Klingon). The language whitelist used to restore the saved language in `App.tsx` is a separate hardcoded list, so keep it in sync with `SUPPORTED_LANGUAGES`.
+
+**Styling.** Tailwind v4 (via the `@tailwindcss/vite` plugin, no config file). Dark mode is class-based (`@custom-variant dark` in `src/index.css`), and dark is the default. Animations use `motion`; icons use `lucide-react`. The `@/` import alias points at the repo root.
