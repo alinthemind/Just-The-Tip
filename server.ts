@@ -788,6 +788,24 @@ app.get('/api/countries', (_req: Request, res: Response) => {
   res.json(countries);
 });
 
+// Malformed or oversized request bodies: answer in JSON so the client can show a real message
+app.use('/api', (err: any, _req: Request, res: Response, next: (err?: any) => void) => {
+  if (!err) return next();
+  const status = err.status || err.statusCode || 500;
+  console.warn('API request error:', err.type || err.message);
+  res.status(status).json({
+    error:
+      err.type === 'entity.too.large'
+        ? 'This photo is too large. Please try a smaller image.'
+        : err.message || 'Request failed',
+  });
+});
+
+// Unknown API routes should not fall through to the SPA's index.html
+app.use('/api', (_req: Request, res: Response) => {
+  res.status(404).json({ error: 'Unknown API route' });
+});
+
 // Vite middleware or production static files
 async function setupVite() {
   if (process.env.NODE_ENV === 'production') {

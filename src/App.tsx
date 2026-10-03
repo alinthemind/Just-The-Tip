@@ -3,6 +3,7 @@ import { ActiveTab, ScannedReceiptData, UserLocation } from './types';
 import { getSavedLocation, requestBrowserGps, saveLocation, setManualLocation, setLocationFromReceipt } from './utils/geolocation';
 import { getTippingRuleForCountry } from './data/tippingCulture';
 import { runClientOcr } from './utils/ocr';
+import { SAMPLE_RECEIPTS, SampleReceipt } from './data/sampleReceipts';
 import { Header } from './components/Header';
 import { ReceiptScanner } from './components/ReceiptScanner';
 import { TipResults } from './components/TipResults';
@@ -17,6 +18,45 @@ const LANGUAGE_STORAGE_KEY = 'globaltip_user_language';
 const THEME_STORAGE_KEY = 'globaltip_user_theme';
 
 export type ThemeMode = 'dark' | 'light';
+
+/** Same shape as /api/scan-receipt's response, built from a demo receipt's own data */
+function sampleToScanData(sample: SampleReceipt) {
+  const rule = getTippingRuleForCountry(sample.countryCode);
+  const surcharges = sample.surcharges || [];
+  const tier = (percent: number | undefined, label: string) => ({ percent: percent ?? 0, label, description: '' });
+  return {
+    merchantName: sample.name,
+    date: sample.date,
+    address: sample.state ? `${sample.city}, ${sample.state}` : sample.city,
+    city: sample.city,
+    state: sample.state || '',
+    locationSource: 'receipt',
+    preTaxSubtotal: sample.subtotal,
+    subtotal: sample.subtotal,
+    tax: sample.tax,
+    surcharges,
+    totalSurcharges: surcharges.reduce((acc, s) => acc + s.amount, 0),
+    serviceCharge: sample.serviceCharge,
+    serviceChargeIncluded: sample.serviceCharge > 0,
+    serviceChargeDescription: sample.notes,
+    total: sample.total,
+    tipBasisAmount: sample.subtotal,
+    items: sample.items,
+    detectedCountry: { code: rule.countryCode, name: rule.countryName, flag: rule.flag },
+    tippingCulture: {
+      isTippingCustomary: rule.isTippingCustomary,
+      isTippingDiscouraged: rule.isTippingDiscouraged,
+      tippingBasis: 'subtotal',
+      poor: tier(rule.poorPercent, rule.poorLabel || ''),
+      minimum: tier(rule.minPercent, rule.minLabel),
+      average: tier(rule.avgPercent, rule.avgLabel),
+      high: tier(rule.highPercent, rule.highLabel),
+      localEtiquetteNotes: [rule.restaurantAdvice, rule.counterCafeAdvice, rule.barAdvice, ...(rule.specialRules || [])],
+      paymentAdvice: rule.taxiAdvice ? `Taxis: ${rule.taxiAdvice}` : undefined,
+    },
+    isFallback: true,
+  };
+}
 
 export default function App() {
   const [activeTab, setActiveTab] = useState<ActiveTab>('scanner');
@@ -198,26 +238,45 @@ export default function App() {
       const candidateLon = photoGps?.longitude ?? userLocation.longitude;
 
       setScanStep('Calculating tip on pre-tax subtotal & local etiquette...');
-      const response = await fetch('/api/scan-receipt', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          image: base64Image,
-          latitude: candidateLat,
-          longitude: candidateLon,
-          countryCode: candidateCountry,
-          cityName: candidateCity,
-          countryName: userLocation.countryName,
-          clientOcr: clientOcrResult,
-        }),
-      });
-
-      if (!response.ok) {
-        const errorData = await response.json().catch(() => ({}));
-        throw new Error(errorData.error || 'Failed to scan receipt. Please try another photo.');
+      let data: any;
+      try {
+        const response = await fetch('/api/scan-receipt', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            image: base64Image,
+            latitude: candidateLat,
+            longitude: candidateLon,
+            countryCode: candidateCountry,
+            cityName: candidateCity,
+            countryName: userLocation.countryName,
+            clientOcr: clientOcrResult,
+          }),
+        });
+        if (!response.ok) {
+          const errorData = await response.json().catch(() => ({}));
+          throw new Error(
+            errorData.error ||
+              (response.status === 404
+                ? 'The receipt server is not reachable. Start the app with "npm run dev".'
+                : response.status === 413
+                ? 'This photo is too large. Please try a smaller image.'
+                : `Failed to scan receipt (error ${response.status}). Please try another photo.`)
+          );
+        }
+        data = await response.json();
+      } catch (requestErr) {
+        // Demo receipts carry their own numbers, so they still work when the server can't be reached
+        const sample = SAMPLE_RECEIPTS.find((s) => s.svgDataUri === base64Image);
+        if (!sample) {
+          // fetch() rejects with a TypeError when the server can't be reached at all
+          throw requestErr instanceof TypeError
+            ? new Error('Can’t reach the server. Check your connection, or that "npm run dev" is still running.')
+            : requestErr;
+        }
+        console.warn('Scan request failed, using built-in sample data:', requestErr);
+        data = sampleToScanData(sample);
       }
-
-      const data = await response.json();
 
       // DETERMINE FINAL LOCATION SOURCE:
       // Priority 1: Sample info or receipt location (printed city or detected country)
