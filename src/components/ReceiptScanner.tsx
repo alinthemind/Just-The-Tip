@@ -152,8 +152,8 @@ export const ReceiptScanner: React.FC<ReceiptScannerProps> = ({
           ) : (
             <>
               <ReceiptIllustration />
-              <FitLine className="mt-6 text-[28px] font-bold tracking-tight leading-tight text-zinc-900 dark:text-white">
-                {t('snapReceipt')} <span className="ig-gradient-text">{t('snapReceiptSub')}</span>
+              <FitLine className="mt-6 text-[28px] font-bold tracking-tight leading-tight">
+                <span className="ig-gradient-text">{t('heroTagline')}</span>
               </FitLine>
 
               <div className="mt-6 grid grid-cols-2 gap-2.5">
@@ -226,9 +226,14 @@ export const ReceiptScanner: React.FC<ReceiptScannerProps> = ({
   );
 };
 
-/** A heading kept on one line: shrinks its font until it fits the available width (any language) */
-const FitLine: React.FC<{ children: React.ReactNode; className?: string; minPx?: number }> = ({ children, className = '', minPx = 14 }) => {
-  const ref = useRef<HTMLHeadingElement>(null);
+/** A line of text kept on one line: shrinks its font until it fits the available width (any language) */
+const FitLine: React.FC<{ children: React.ReactNode; className?: string; minPx?: number; as?: 'h2' | 'p' }> = ({
+  children,
+  className = '',
+  minPx = 14,
+  as: Tag = 'h2',
+}) => {
+  const ref = useRef<HTMLElement>(null);
   useLayoutEffect(() => {
     const el = ref.current;
     if (!el) return;
@@ -246,9 +251,9 @@ const FitLine: React.FC<{ children: React.ReactNode; className?: string; minPx?:
     return () => ro.disconnect();
   }, [children, minPx]);
   return (
-    <h2 ref={ref} className={`whitespace-nowrap overflow-hidden ${className}`}>
+    <Tag ref={ref as any} className={`whitespace-nowrap overflow-hidden ${className}`}>
       {children}
-    </h2>
+    </Tag>
   );
 };
 

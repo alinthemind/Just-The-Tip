@@ -17,7 +17,6 @@ import { LanguageCode, SUPPORTED_LANGUAGES, getTranslation } from './data/transl
 const HISTORY_STORAGE_KEY = 'globaltip_scans_history';
 const LANGUAGE_STORAGE_KEY = 'globaltip_user_language';
 const THEME_STORAGE_KEY = 'globaltip_user_theme';
-const LOCATION_SHEET_SESSION_KEY = 'globaltip_location_sheet_shown';
 
 export type ThemeMode = 'dark' | 'light';
 
@@ -81,8 +80,8 @@ export default function App() {
   const [userLocation, setUserLocation] = useState<UserLocation>(getSavedLocation);
   const [isLocating, setIsLocating] = useState<boolean>(false);
   const [isLocationModalOpen, setIsLocationModalOpen] = useState<boolean>(false);
-  // Shown when GPS is blocked in a way the user can fix (permission off, insecure page)
-  const [locationSheetReason, setLocationSheetReason] = useState<GpsErrorCode | null>(null);
+  // "Where is this restaurant?": only when a scanned receipt and its photo give no location
+  const [locationSheet, setLocationSheet] = useState<{ open: boolean; reason: GpsErrorCode | null }>({ open: false, reason: null });
   const [toastMessage, setToastMessage] = useState<{ text: string; type: 'success' | 'error' | 'info' } | null>(null);
 
   // Default to Dark Mode as requested
@@ -166,39 +165,26 @@ export default function App() {
       setActiveTab('scanner');
     }
     try {
-      const loc = await requestBrowserGps((update) => {
-        // Interim IP location, or a GPS fix that arrived late: show it unless a receipt is open
-        if (!receiptOpenRef.current) setUserLocation(update);
-      });
+      const loc = await requestBrowserGps(
+        (update) => {
+          // Interim IP location, or a GPS fix that arrived late: show it unless a receipt is open
+          if (!receiptOpenRef.current) setUserLocation(update);
+        },
+        // On launch never trigger the browser's permission prompt; the reset button is an explicit request
+        { prompt: manualTrigger }
+      );
       if (!receiptOpenRef.current) setUserLocation(loc);
-
-      // Fixable problems get the "Turn On Location" sheet: always on a manual refresh, once per session on launch
-      const fixable = loc.errorCode === 'denied' || loc.errorCode === 'insecure' || loc.errorCode === 'unavailable';
-      if (fixable) {
-        let alreadyAsked = false;
-        try {
-          alreadyAsked = sessionStorage.getItem(LOCATION_SHEET_SESSION_KEY) === '1';
-          sessionStorage.setItem(LOCATION_SHEET_SESSION_KEY, '1');
-        } catch {}
-        if (manualTrigger || !alreadyAsked) {
-          setLocationSheetReason(loc.errorCode!);
-          return;
-        }
-      }
 
       if (manualTrigger) {
         // Say why GPS wasn't used, so the user knows what to fix
         const reason = loc.errorCode ? t(GPS_ERROR_KEYS[loc.errorCode]) : '';
-        if (loc.error && !loc.city && loc.countryCode === 'US') {
+        if (loc.source !== 'gps') {
+          const place = loc.city || (loc.error && loc.countryCode === 'US' ? '' : loc.countryName);
           setToastMessage({
-            text: reason ? `${reason} ${t('locFailed')}` : t('locFailed'),
-            type: 'error',
-          });
-          setIsLocationModalOpen(true);
-        } else if (loc.source !== 'gps') {
-          setToastMessage({
-            text: `${reason ? `${reason} ` : ''}${t('locApproximate')}: ${loc.city || loc.countryName} ${loc.flag}`,
-            type: 'info',
+            text: place
+              ? `${reason ? `${reason} ` : ''}${t('locApproximate')}: ${place} ${loc.flag}`
+              : reason || t('locFailed'),
+            type: place ? 'info' : 'error',
           });
         } else {
           setToastMessage({
@@ -214,7 +200,6 @@ export default function App() {
           text: t('locFailed'),
           type: 'error',
         });
-        setIsLocationModalOpen(true);
       }
     } finally {
       setIsLocating(false);
@@ -222,8 +207,73 @@ export default function App() {
   };
 
   const handleSelectCountry = (countryCode: string) => {
+    if (currentReceipt) {
+      // Choosing where this restaurant is: re-price the receipt, don't change the saved device location
+      relocateReceipt(countryCode, '', 'manual');
+      return;
+    }
     const loc = setManualLocation(countryCode);
     setUserLocation(loc);
+  };
+
+  /** Move the open receipt to another country/city and recompute its tip tiers there */
+  const relocateReceipt = (countryCode: string, city: string, source: 'gps' | 'manual') => {
+    const rule = getTippingRuleForCountry(countryCode);
+    setCurrentReceipt((r) => {
+      if (!r) return r;
+      const service: ServiceType = r.serviceType || 'restaurant';
+      const tiers = getServiceTiers(countryCode, service);
+      const round2 = (n: number) => Math.round(n * 100) / 100;
+      const tier = (percent: number, label: string, description = '') => {
+        const amount = round2(r.tipBasisAmount * (percent / 100));
+        return { percent, amount, totalWithTip: round2(r.total + amount), label, description };
+      };
+      return {
+        ...r,
+        city,
+        state: '',
+        locationSource: source,
+        currencyCode: rule.currencyCode,
+        currencySymbol: rule.currencySymbol,
+        detectedCountry: { code: rule.countryCode, name: rule.countryName, flag: rule.flag },
+        tippingCulture: {
+          ...r.tippingCulture,
+          isTippingCustomary: rule.isTippingCustomary,
+          isTippingDiscouraged: rule.isTippingDiscouraged,
+          poor: tier(tiers.poor, rule.poorLabel),
+          minimum: tier(tiers.min, rule.minLabel),
+          average: tier(tiers.avg, rule.avgLabel, SERVICE_ADVICE[service](rule)),
+          high: tier(tiers.high, rule.highLabel),
+          localEtiquetteNotes: [SERVICE_ADVICE[service](rule), ...(rule.specialRules || [])],
+          paymentAdvice: rule.taxiAdvice ? `Taxis: ${rule.taxiAdvice}` : undefined,
+        },
+      };
+    });
+    const loc = setLocationFromReceipt(city, '', countryCode);
+    loc.source = source === 'gps' ? 'gps' : 'manual';
+    setUserLocation(loc);
+  };
+
+  /** "Use My Location" from the receipt sheet: an explicit request, so the permission prompt is fine here */
+  const handleUseLocationForReceipt = async () => {
+    setIsLocating(true);
+    try {
+      const loc = await requestBrowserGps(undefined, { prompt: true });
+      if (loc.source === 'gps') {
+        saveLocation(loc);
+        relocateReceipt(loc.countryCode, loc.city, 'gps');
+        setLocationSheet({ open: false, reason: null });
+      } else if (loc.errorCode === 'timeout' && loc.city) {
+        // GPS too slow but we have a network location: use it rather than leaving the sheet stuck
+        relocateReceipt(loc.countryCode, loc.city, 'gps');
+        setLocationSheet({ open: false, reason: null });
+      } else {
+        // Keep the sheet open and show how to turn location on
+        setLocationSheet({ open: true, reason: loc.errorCode || 'unavailable' });
+      }
+    } finally {
+      setIsLocating(false);
+    }
   };
 
   const handleScanReceipt = async (
@@ -360,6 +410,20 @@ export default function App() {
 
       if (!resolvedCountryCode) {
         resolvedCountryCode = 'US';
+      }
+
+      // Did the receipt itself (or its photo's GPS) say where the restaurant is? Gemini's country only counts
+      // when it differs from the device location it was given as context, i.e. it read it off the receipt.
+      const receiptLocated = Boolean(
+        sampleInfo ||
+          receiptCity ||
+          clientOcrResult?.countryCode ||
+          photoLocationCandidate ||
+          (!data.isFallback && data.detectedCountry?.code && data.detectedCountry.code !== candidateCountry)
+      );
+      // Ask only then, and only if the device location is a guess (not real GPS, not a country the user picked)
+      if (!receiptLocated && userLocation.source !== 'gps' && userLocation.source !== 'manual') {
+        setLocationSheet({ open: true, reason: null });
       }
 
       // Sync active location so user sees correct culture & currency in Header
@@ -513,12 +577,11 @@ export default function App() {
     }
   };
 
-  // Leaving a receipt drops its location and goes back to the device's (saved) location
+  // Leaving a receipt drops its location (printed, photo, or picked for it) and goes back to the saved device location
   const handleScanAnother = () => {
     setCurrentReceipt(null);
-    if (userLocation.source === 'receipt' || userLocation.source === 'photo-gps') {
-      setUserLocation(getSavedLocation());
-    }
+    setLocationSheet({ open: false, reason: null });
+    setUserLocation(getSavedLocation());
   };
 
   const handleUpdateReceipt = (updated: ScannedReceiptData) => {
@@ -589,6 +652,7 @@ export default function App() {
           <div>
             {currentReceipt ? (
               <TipResults
+                key={`${currentReceipt.id}-${currentReceipt.detectedCountry?.code}`}
                 receipt={currentReceipt}
                 onScanAnother={handleScanAnother}
                 onUpdateReceipt={handleUpdateReceipt}
@@ -632,9 +696,11 @@ export default function App() {
       />
 
       <LocationPermissionSheet
-        reason={locationSheetReason}
-        onClose={() => setLocationSheetReason(null)}
-        onRetry={() => handleRefreshGps(true)}
+        open={locationSheet.open && currentReceipt !== null}
+        reason={locationSheet.reason}
+        isLocating={isLocating}
+        onClose={() => setLocationSheet({ open: false, reason: null })}
+        onUseLocation={handleUseLocationForReceipt}
         onChooseCountry={() => setIsLocationModalOpen(true)}
         currentLang={currentLang}
       />

@@ -1,33 +1,63 @@
 import React from 'react';
-import { MapPin, Lock, RotateCw, Globe2, Settings } from 'lucide-react';
+import { MapPin, Lock, RotateCw, Globe2, Settings, Navigation } from 'lucide-react';
 import { GpsErrorCode } from '../types';
 import { LanguageCode, getTranslation } from '../data/translations';
 
 interface LocationPermissionSheetProps {
+  open: boolean;
+  /** Why the last GPS attempt failed, if one was made */
   reason: GpsErrorCode | null;
+  isLocating: boolean;
   onClose: () => void;
-  onRetry: () => void;
+  onUseLocation: () => void;
   onChooseCountry: () => void;
   currentLang?: LanguageCode;
 }
 
-/** Web pages can't open the phone's Settings app, so for a denied permission we show the exact steps */
-function settingsStepsKey(): string {
+/**
+ * Web pages can't open the phone's Settings app, so for a denied permission we show the exact steps.
+ * On iPhone every browser has its own Location Services entry, so name the browser actually in use.
+ */
+function settingsSteps(t: (key: string) => string): string {
   const ua = typeof navigator !== 'undefined' ? navigator.userAgent : '';
-  if (/iPhone|iPad|iPod/i.test(ua)) return 'locStepsIos';
-  if (/Android/i.test(ua)) return 'locStepsAndroid';
-  return 'locStepsDesktop';
+  if (/iPhone|iPad|iPod/i.test(ua)) {
+    const iosApp = [
+      [/CriOS/, 'Chrome'],
+      [/FxiOS/, 'Firefox'],
+      [/EdgiOS/, 'Edge'],
+      [/OPiOS|OPT\//, 'Opera'],
+      [/DuckDuckGo/, 'DuckDuckGo'],
+      [/GSA\//, 'Google'],
+    ].find(([re]) => (re as RegExp).test(ua))?.[1] as string | undefined;
+    return iosApp ? t('locStepsIosApp').replace('{browser}', iosApp) : t('locStepsIos');
+  }
+  if (/Android/i.test(ua)) {
+    const browser = /SamsungBrowser/.test(ua)
+      ? 'Samsung Internet'
+      : /Firefox/.test(ua)
+      ? 'Firefox'
+      : /EdgA/.test(ua)
+      ? 'Edge'
+      : 'Chrome';
+    return t('locStepsAndroid').replace('{browser}', browser);
+  }
+  return t('locStepsDesktop');
 }
 
+/**
+ * Asked only when a scanned receipt (and its photo metadata) doesn't say where the restaurant is.
+ */
 export const LocationPermissionSheet: React.FC<LocationPermissionSheetProps> = ({
+  open,
   reason,
+  isLocating,
   onClose,
-  onRetry,
+  onUseLocation,
   onChooseCountry,
   currentLang = 'en',
 }) => {
   const t = (key: string) => getTranslation(currentLang, key);
-  if (!reason) return null;
+  if (!open) return null;
 
   // Over plain http the same dev server also answers https, so switching protocol is enough
   const canOpenSecure =
@@ -46,7 +76,7 @@ export const LocationPermissionSheet: React.FC<LocationPermissionSheetProps> = (
       <div
         role="dialog"
         aria-modal="true"
-        aria-label={t('locSheetTitle')}
+        aria-label={t('locWhereTitle')}
         onClick={(e) => e.stopPropagation()}
         className="bg-white dark:bg-elevated w-full sm:max-w-sm rounded-t-[20px] sm:rounded-[20px] px-5 pt-3 pb-8 sm:pb-6 shadow-2xl animate-in slide-in-from-bottom-8 duration-200"
       >
@@ -54,16 +84,16 @@ export const LocationPermissionSheet: React.FC<LocationPermissionSheetProps> = (
 
         <div className="mt-5 flex flex-col items-center text-center">
           <span className="w-16 h-16 rounded-[18px] ig-gradient flex items-center justify-center text-white shadow-[0_8px_20px_-8px_rgba(225,48,108,0.7)]">
-            {reason === 'insecure' ? <Lock className="w-8 h-8" /> : <MapPin className="w-8 h-8" />}
+            <MapPin className="w-8 h-8" />
           </span>
-          <h3 className="mt-4 text-[22px] font-bold tracking-tight text-zinc-900 dark:text-white">{t('locSheetTitle')}</h3>
-          <p className="mt-1.5 text-[15px] leading-snug text-zinc-500 dark:text-zinc-400">{t('locSheetBody')}</p>
+          <h3 className="mt-4 text-[22px] font-bold tracking-tight text-zinc-900 dark:text-white">{t('locWhereTitle')}</h3>
+          <p className="mt-1.5 text-[15px] leading-snug text-zinc-500 dark:text-zinc-400">{t('locWhereBody')}</p>
         </div>
 
-        {reason !== 'insecure' && (
+        {(reason === 'denied' || reason === 'unavailable') && (
           <div className="mt-5 flex items-start gap-3 rounded-[14px] bg-[#767680]/[0.08] dark:bg-[#767680]/20 p-3.5 text-left">
             <Settings className="w-5 h-5 text-zinc-400 flex-shrink-0 mt-0.5" />
-            <p className="text-[14px] leading-snug text-zinc-700 dark:text-zinc-300">{t(settingsStepsKey())}</p>
+            <p className="text-[14px] leading-snug text-zinc-700 dark:text-zinc-300">{settingsSteps(t)}</p>
           </div>
         )}
 
@@ -74,16 +104,9 @@ export const LocationPermissionSheet: React.FC<LocationPermissionSheetProps> = (
               {t('locOpenSecure')}
             </button>
           ) : (
-            <button
-              type="button"
-              onClick={() => {
-                onClose();
-                onRetry();
-              }}
-              className={primaryBtn}
-            >
-              <RotateCw className="w-5 h-5" />
-              {t('locTryAgain')}
+            <button type="button" onClick={onUseLocation} disabled={isLocating} className={`${primaryBtn} disabled:opacity-70`}>
+              {reason ? <RotateCw className={`w-5 h-5 ${isLocating ? 'animate-spin' : ''}`} /> : <Navigation className={`w-5 h-5 ${isLocating ? 'animate-pulse' : ''}`} fill="currentColor" />}
+              {reason ? t('locTryAgain') : t('useMyLocation')}
             </button>
           )}
           <button

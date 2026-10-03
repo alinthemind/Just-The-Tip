@@ -119,8 +119,8 @@ export function canUseBrowserGps(): boolean {
 }
 
 async function ipFallback(
-  errorCode: GpsErrorCode,
-  error: string,
+  errorCode: GpsErrorCode | undefined,
+  error: string | undefined,
   ipPromise: Promise<UserLocation | null> = getIpLocation()
 ): Promise<UserLocation> {
   const ipLoc = await ipPromise;
@@ -134,7 +134,22 @@ async function ipFallback(
  * a fix (or waits for the permission prompt). A GPS fix that comes after the promise resolved is
  * also delivered through `onUpdate`.
  */
-export function requestBrowserGps(onUpdate?: (loc: UserLocation) => void): Promise<UserLocation> {
+export async function requestBrowserGps(
+  onUpdate?: (loc: UserLocation) => void,
+  { prompt = true }: { prompt?: boolean } = {}
+): Promise<UserLocation> {
+  // Without `prompt`, only use GPS the user already allowed; never trigger the browser's permission prompt
+  if (!prompt && canUseBrowserGps()) {
+    const state = await navigator.permissions
+      ?.query({ name: 'geolocation' as PermissionName })
+      .then((status) => status.state)
+      .catch(() => 'prompt');
+    if (state !== 'granted') return ipFallback(undefined, undefined);
+  }
+  return requestGps(onUpdate);
+}
+
+function requestGps(onUpdate?: (loc: UserLocation) => void): Promise<UserLocation> {
   if (!canUseBrowserGps()) {
     return navigator.geolocation
       ? ipFallback('insecure', 'GPS needs a secure (https) connection')
