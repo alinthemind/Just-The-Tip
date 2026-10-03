@@ -42,38 +42,38 @@ Split between: ${diners} people
   };
 
   return (
-    <div className="bg-gradient-to-br from-zinc-50 via-pink-50/20 to-zinc-50 rounded-2xl border border-zinc-200/80 p-4 sm:p-5 mt-4">
+    <div className="bg-gradient-to-br from-zinc-50 via-pink-50/20 to-zinc-50 dark:from-zinc-900/90 dark:via-pink-950/20 dark:to-zinc-900/90 rounded-2xl border border-zinc-200/80 dark:border-zinc-800 p-4 sm:p-5 mt-4 transition-colors">
       <div className="flex items-center justify-between mb-3.5 gap-2">
         <div className="flex items-center gap-2">
           <div className="ig-story-ring-sm">
-            <div className="w-7 h-7 rounded-full bg-white flex items-center justify-center text-[#E1306C]">
+            <div className="w-7 h-7 rounded-full bg-white dark:bg-zinc-900 flex items-center justify-center text-[#E1306C]">
               <Users className="w-3.5 h-3.5" />
             </div>
           </div>
           <div>
-            <h4 className="font-extrabold text-xs sm:text-sm text-zinc-900 leading-tight">
+            <h4 className="font-extrabold text-xs sm:text-sm text-zinc-900 dark:text-zinc-100 leading-tight">
               Split Bill Among Diners
             </h4>
-            <p className="text-[11px] text-zinc-500">Each person's exact share with tip</p>
+            <p className="text-[11px] text-zinc-500 dark:text-zinc-400">Each person's exact share with tip</p>
           </div>
         </div>
 
         {/* Counter controls with large touch targets */}
-        <div className="flex items-center gap-1.5 bg-white border border-zinc-200 rounded-full px-2 py-1 shadow-xs">
+        <div className="flex items-center gap-1.5 bg-white dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 rounded-full px-2 py-1 shadow-xs">
           <button
             onClick={() => setDiners((d) => Math.max(1, d - 1))}
             disabled={diners <= 1}
-            className="w-7 h-7 rounded-full flex items-center justify-center text-zinc-600 hover:text-zinc-900 hover:bg-zinc-100 disabled:opacity-30 transition-colors active:scale-90"
+            className="w-7 h-7 rounded-full flex items-center justify-center text-zinc-600 dark:text-zinc-300 hover:text-zinc-900 dark:hover:text-zinc-100 hover:bg-zinc-100 dark:hover:bg-zinc-700 disabled:opacity-30 transition-colors active:scale-90"
             title="Decrease diners"
           >
             <Minus className="w-3.5 h-3.5" />
           </button>
-          <span className="font-black text-zinc-900 text-xs sm:text-sm w-6 text-center font-mono">
+          <span className="font-black text-zinc-900 dark:text-zinc-100 text-xs sm:text-sm w-6 text-center font-mono">
             {diners}
           </span>
           <button
             onClick={() => setDiners((d) => Math.min(30, d + 1))}
-            className="w-7 h-7 rounded-full flex items-center justify-center text-zinc-600 hover:text-zinc-900 hover:bg-zinc-100 transition-colors active:scale-90"
+            className="w-7 h-7 rounded-full flex items-center justify-center text-zinc-600 dark:text-zinc-300 hover:text-zinc-900 dark:hover:text-zinc-100 hover:bg-zinc-100 dark:hover:bg-zinc-700 transition-colors active:scale-90"
             title="Increase diners"
           >
             <Plus className="w-3.5 h-3.5" />
@@ -82,28 +82,28 @@ Split between: ${diners} people
       </div>
 
       {/* Split Result Card */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 items-center bg-white p-3.5 sm:p-4 rounded-2xl border border-zinc-200/80 shadow-xs">
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 items-center bg-white dark:bg-zinc-950/70 p-3.5 sm:p-4 rounded-2xl border border-zinc-200/80 dark:border-zinc-800 shadow-xs">
         <div>
-          <span className="text-[10px] font-black uppercase tracking-wider text-zinc-400">
+          <span className="text-[10px] font-black uppercase tracking-wider text-zinc-400 dark:text-zinc-500">
             Each Person Pays
           </span>
           <div className="text-2xl sm:text-3xl font-black ig-gradient-text font-mono mt-0.5">
             {currencySymbol}{finalPerPerson.toFixed(2)}
           </div>
-          <div className="text-xs text-zinc-500 mt-1 flex items-center gap-2">
+          <div className="text-xs text-zinc-500 dark:text-zinc-400 mt-1 flex items-center gap-2">
             <span>Food: {currencySymbol}{basePerPerson.toFixed(2)}</span>
             <span>•</span>
-            <span className="text-zinc-700 font-medium">Tip: {currencySymbol}{tipPerPerson.toFixed(2)}</span>
+            <span className="text-zinc-700 dark:text-zinc-300 font-medium">Tip: {currencySymbol}{tipPerPerson.toFixed(2)}</span>
           </div>
         </div>
 
-        <div className="flex flex-col sm:items-end gap-2 pt-2 sm:pt-0 border-t sm:border-t-0 border-zinc-100">
-          <label className="flex items-center gap-2 text-xs text-zinc-600 cursor-pointer select-none">
+        <div className="flex flex-col sm:items-end gap-2 pt-2 sm:pt-0 border-t sm:border-t-0 border-zinc-100 dark:border-zinc-800">
+          <label className="flex items-center gap-2 text-xs text-zinc-600 dark:text-zinc-300 cursor-pointer select-none">
             <input
               type="checkbox"
               checked={roundUpPerPerson}
               onChange={(e) => setRoundUpPerPerson(e.target.checked)}
-              className="rounded text-[#E1306C] focus:ring-pink-400 w-4 h-4 border-zinc-300"
+              className="rounded text-[#E1306C] focus:ring-pink-400 w-4 h-4 border-zinc-300 dark:border-zinc-700 dark:bg-zinc-800"
             />
             <span>Round up to nearest whole {currencySymbol}</span>
           </label>

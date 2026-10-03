@@ -95,56 +95,56 @@ export const ManualCalculator: React.FC<ManualCalculatorProps> = ({
 
   return (
     <div className="space-y-4 sm:space-y-6 max-w-3xl mx-auto pb-20 sm:pb-8">
-      <div className="bg-white rounded-3xl border border-zinc-200/80 p-4 sm:p-8 shadow-[0_2px_12px_rgba(0,0,0,0.04)] relative overflow-hidden">
+      <div className="bg-white dark:bg-zinc-900 rounded-3xl border border-zinc-200/80 dark:border-zinc-800 p-4 sm:p-8 shadow-[0_2px_12px_rgba(0,0,0,0.04)] dark:shadow-none relative overflow-hidden transition-colors">
         {/* Instagram top bar */}
         <div className="absolute top-0 left-0 right-0 h-1.5 ig-gradient" />
 
         {/* Title & Location indicator */}
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-5 border-b border-zinc-100">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-5 border-b border-zinc-100 dark:border-zinc-800">
           <div>
-            <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-gradient-to-r from-pink-50 to-amber-50 border border-pink-200/60 text-xs font-bold mb-2">
+            <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-gradient-to-r from-pink-50 to-amber-50 dark:from-pink-950/40 dark:to-amber-950/40 border border-pink-200/60 dark:border-pink-900/60 text-xs font-bold mb-2">
               <Calculator className="w-3.5 h-3.5 text-[#E1306C]" />
               <span className="ig-gradient-text">Pre-Tax Culture Tip Calculator</span>
             </div>
-            <h2 className="text-xl sm:text-2xl font-black tracking-tight text-zinc-900">
+            <h2 className="text-xl sm:text-2xl font-black tracking-tight text-zinc-900 dark:text-zinc-100">
               Just the Tip Calculator
             </h2>
-            <p className="text-xs text-zinc-500 mt-1">
+            <p className="text-xs text-zinc-500 dark:text-zinc-400 mt-1">
               Enter your food &amp; beverage subtotal to calculate tips excluding taxes and health mandates.
             </p>
           </div>
 
           <button
             onClick={onOpenLocationPicker}
-            className="flex items-center gap-2 px-3 py-1.5 rounded-full border border-zinc-200 bg-white hover:border-pink-300 text-xs font-bold text-zinc-800 transition-all cursor-pointer shadow-xs active:scale-95"
+            className="flex items-center gap-2 px-3 py-1.5 rounded-full border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 hover:border-pink-300 dark:hover:border-pink-500/50 text-xs font-bold text-zinc-800 dark:text-zinc-200 transition-all cursor-pointer shadow-xs active:scale-95"
           >
             <div className="ig-story-ring-sm">
-              <span className="w-5 h-5 rounded-full bg-white flex items-center justify-center text-xs">
+              <span className="w-5 h-5 rounded-full bg-white dark:bg-zinc-900 flex items-center justify-center text-xs">
                 {rule.flag}
               </span>
             </div>
-            <span className="font-extrabold text-zinc-900">{rule.countryName}</span>
+            <span className="font-extrabold text-zinc-900 dark:text-zinc-100">{rule.countryName}</span>
             <MapPin className="w-3.5 h-3.5 text-[#E1306C]" />
           </button>
         </div>
 
         {/* Culture note banner */}
         {rule.isTippingDiscouraged ? (
-          <div className="mt-4 bg-sky-50 border border-sky-200 p-4 rounded-2xl flex items-start gap-3 text-xs text-sky-900">
-            <Info className="w-4 h-4 text-sky-600 flex-shrink-0 mt-0.5" />
+          <div className="mt-4 bg-sky-50 dark:bg-sky-950/40 border border-sky-200 dark:border-sky-800 p-4 rounded-2xl flex items-start gap-3 text-xs text-sky-900 dark:text-sky-200">
+            <Info className="w-4 h-4 text-sky-600 dark:text-sky-400 flex-shrink-0 mt-0.5" />
             <div>
               <strong>No Tipping in {rule.countryName}:</strong> {rule.cultureSummary}
             </div>
           </div>
         ) : (
-          <div className="mt-4 bg-gradient-to-r from-pink-50/50 via-purple-50/50 to-orange-50/50 border border-pink-200/80 p-3.5 rounded-2xl text-xs text-zinc-700 space-y-1">
-            <div className="font-black text-zinc-900 flex items-center gap-1.5">
+          <div className="mt-4 bg-gradient-to-r from-pink-50/50 via-purple-50/50 to-orange-50/50 dark:from-pink-950/20 dark:via-purple-950/20 dark:to-orange-950/20 border border-pink-200/80 dark:border-zinc-800 p-3.5 rounded-2xl text-xs text-zinc-700 dark:text-zinc-300 space-y-1">
+            <div className="font-black text-zinc-900 dark:text-zinc-100 flex items-center gap-1.5">
               <span>{rule.flag} {rule.countryName} Customary Rates:</span>
               <span className="font-mono ig-gradient-text font-black">
                 Min {rule.minPercent}% • Avg {rule.avgPercent}% • High {rule.highPercent}%
               </span>
             </div>
-            <p className="text-zinc-600 text-[11px] leading-relaxed">{rule.cultureSummary}</p>
+            <p className="text-zinc-600 dark:text-zinc-400 text-[11px] leading-relaxed">{rule.cultureSummary}</p>
           </div>
         )}
 
@@ -152,15 +152,15 @@ export const ManualCalculator: React.FC<ManualCalculatorProps> = ({
         <div className="mt-5 space-y-3.5">
           <div>
             <div className="flex items-center justify-between mb-1">
-              <label className="text-xs font-black text-zinc-900">
+              <label className="text-xs font-black text-zinc-900 dark:text-zinc-100">
                 Pre-Tax Food &amp; Beverage Subtotal ({rule.currencySymbol})
               </label>
-              <span className="text-[10px] font-bold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-full border border-emerald-200">
+              <span className="text-[10px] font-bold text-emerald-700 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-950/50 px-2 py-0.5 rounded-full border border-emerald-200 dark:border-emerald-800">
                 Tip Basis
               </span>
             </div>
             <div className="relative max-w-sm">
-              <span className="absolute left-3.5 top-1/2 -translate-y-1/2 font-black text-zinc-400 text-base">
+              <span className="absolute left-3.5 top-1/2 -translate-y-1/2 font-black text-zinc-400 dark:text-zinc-500 text-base">
                 {rule.currencySymbol}
               </span>
               <input
@@ -169,55 +169,55 @@ export const ManualCalculator: React.FC<ManualCalculatorProps> = ({
                 min="0"
                 value={billAmount}
                 onChange={(e) => setBillAmount(e.target.value)}
-                className="w-full pl-9 pr-4 py-2.5 rounded-2xl border border-zinc-200 text-lg font-mono font-black text-zinc-900 focus:outline-none focus:ring-2 focus:ring-pink-500/20 focus:border-[#E1306C] bg-zinc-50/60"
+                className="w-full pl-9 pr-4 py-2.5 rounded-2xl border border-zinc-200 dark:border-zinc-700 text-lg font-mono font-black text-zinc-900 dark:text-zinc-100 focus:outline-none focus:ring-2 focus:ring-pink-500/20 focus:border-[#E1306C] bg-zinc-50/60 dark:bg-zinc-950"
                 placeholder="0.00"
               />
             </div>
           </div>
 
           {/* Surcharges (SF Mandate) and Tax toggles */}
-          <div className="bg-zinc-50/70 p-3.5 rounded-2xl border border-zinc-200/70 space-y-3">
+          <div className="bg-zinc-50/70 dark:bg-zinc-950/60 p-3.5 rounded-2xl border border-zinc-200/70 dark:border-zinc-800 space-y-3">
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
-              <label className="flex items-center gap-2 text-xs text-zinc-800 font-bold cursor-pointer">
+              <label className="flex items-center gap-2 text-xs text-zinc-800 dark:text-zinc-200 font-bold cursor-pointer">
                 <input
                   type="checkbox"
                   checked={hasSurcharges}
                   onChange={(e) => setHasSurcharges(e.target.checked)}
-                  className="rounded text-[#E1306C] focus:ring-pink-400 w-4 h-4 border-zinc-300"
+                  className="rounded text-[#E1306C] focus:ring-pink-400 w-4 h-4 border-zinc-300 dark:border-zinc-700 dark:bg-zinc-800"
                 />
                 <span>Include SF Health Mandate or fees (Excluded from tip)</span>
               </label>
 
               {hasSurcharges && (
                 <div className="flex items-center gap-1.5 self-end sm:self-auto">
-                  <span className="text-xs text-zinc-500 font-bold">{rule.currencySymbol}</span>
+                  <span className="text-xs text-zinc-500 dark:text-zinc-400 font-bold">{rule.currencySymbol}</span>
                   <input
                     type="number"
                     step="0.01"
                     value={surchargeAmount}
                     onChange={(e) => setSurchargeAmount(e.target.value)}
-                    className="w-20 px-2 py-1 text-xs border border-zinc-300 rounded-lg font-mono font-bold bg-white"
+                    className="w-20 px-2 py-1 text-xs border border-zinc-300 dark:border-zinc-700 rounded-lg font-mono font-bold bg-white dark:bg-zinc-900 text-zinc-900 dark:text-zinc-100"
                     placeholder="0.00"
                   />
-                  <span className="text-[10px] text-amber-700 bg-amber-50 px-1.5 py-0.5 rounded font-bold">
+                  <span className="text-[10px] text-amber-700 dark:text-amber-400 bg-amber-50 dark:bg-amber-950/50 px-1.5 py-0.5 rounded font-bold">
                     Not tipped on
                   </span>
                 </div>
               )}
             </div>
 
-            <div className="flex items-center justify-between gap-2 pt-2 border-t border-zinc-200/60">
-              <label className="text-xs text-zinc-600 font-medium">
+            <div className="flex items-center justify-between gap-2 pt-2 border-t border-zinc-200/60 dark:border-zinc-800">
+              <label className="text-xs text-zinc-600 dark:text-zinc-400 font-medium">
                 Sales Tax (Excluded from tip):
               </label>
               <div className="flex items-center gap-1.5">
-                <span className="text-xs text-zinc-500 font-bold">{rule.currencySymbol}</span>
+                <span className="text-xs text-zinc-500 dark:text-zinc-400 font-bold">{rule.currencySymbol}</span>
                 <input
                   type="number"
                   step="0.01"
                   value={taxAmount}
                   onChange={(e) => setTaxAmount(e.target.value)}
-                  className="w-20 px-2 py-1 text-xs border border-zinc-300 rounded-lg font-mono font-bold bg-white"
+                  className="w-20 px-2 py-1 text-xs border border-zinc-300 dark:border-zinc-700 rounded-lg font-mono font-bold bg-white dark:bg-zinc-900 text-zinc-900 dark:text-zinc-100"
                   placeholder="0.00"
                 />
               </div>
@@ -226,8 +226,8 @@ export const ManualCalculator: React.FC<ManualCalculatorProps> = ({
         </div>
 
         {/* Round to Whole Currency Controls */}
-        <div className="flex flex-wrap items-center justify-between gap-2 mt-4 pt-4 border-t border-zinc-100">
-          <div className="flex items-center gap-1 text-xs font-bold text-zinc-600">
+        <div className="flex flex-wrap items-center justify-between gap-2 mt-4 pt-4 border-t border-zinc-100 dark:border-zinc-800">
+          <div className="flex items-center gap-1 text-xs font-bold text-zinc-600 dark:text-zinc-400">
             <Coins className="w-3.5 h-3.5 text-[#E1306C]" />
             <span>Round to Whole ({rule.currencySymbol}):</span>
           </div>
@@ -248,7 +248,7 @@ export const ManualCalculator: React.FC<ManualCalculatorProps> = ({
               className={`flex items-center gap-1.5 px-3.5 py-1.5 rounded-full text-xs font-bold transition-all cursor-pointer shadow-xs active:scale-95 ${
                 roundMode !== 'none'
                   ? 'ig-gradient text-white shadow-pink-500/25 ring-2 ring-pink-400/40'
-                  : 'bg-white text-zinc-800 border border-zinc-200 hover:border-pink-300'
+                  : 'bg-white dark:bg-zinc-800 text-zinc-800 dark:text-zinc-200 border border-zinc-200 dark:border-zinc-700 hover:border-pink-300 dark:hover:border-pink-500/50'
               }`}
               title="Toggle Round to Whole currency"
             >
@@ -263,14 +263,14 @@ export const ManualCalculator: React.FC<ManualCalculatorProps> = ({
             </button>
 
             {/* Segmented Selector for Exact Cents vs Whole Total vs Whole Tip */}
-            <div className="flex items-center p-0.5 bg-zinc-100 rounded-full border border-zinc-200 text-xs">
+            <div className="flex items-center p-0.5 bg-zinc-100 dark:bg-zinc-800 rounded-full border border-zinc-200 dark:border-zinc-700 text-xs">
               <button
                 type="button"
                 onClick={() => setRoundMode('none')}
                 className={`px-3 py-1 rounded-full font-bold transition-all cursor-pointer ${
                   roundMode === 'none'
-                    ? 'bg-white text-zinc-900 shadow-xs'
-                    : 'text-zinc-500 hover:text-zinc-900'
+                    ? 'bg-white dark:bg-zinc-700 text-zinc-900 dark:text-zinc-100 shadow-xs'
+                    : 'text-zinc-500 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-100'
                 }`}
               >
                 Exact
@@ -281,7 +281,7 @@ export const ManualCalculator: React.FC<ManualCalculatorProps> = ({
                 className={`flex items-center gap-1 px-3 py-1 rounded-full font-bold transition-all cursor-pointer ${
                   roundMode === 'total'
                     ? 'bg-[#E1306C] text-white shadow-xs'
-                    : 'text-zinc-500 hover:text-zinc-900'
+                    : 'text-zinc-500 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-100'
                 }`}
                 title={`Round grand total to whole ${rule.currencySymbol}`}
               >
@@ -293,7 +293,7 @@ export const ManualCalculator: React.FC<ManualCalculatorProps> = ({
                 className={`flex items-center gap-1 px-3 py-1 rounded-full font-bold transition-all cursor-pointer ${
                   roundMode === 'tip'
                     ? 'bg-[#E1306C] text-white shadow-xs'
-                    : 'text-zinc-500 hover:text-zinc-900'
+                    : 'text-zinc-500 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-100'
                 }`}
                 title={`Round tip amount to whole ${rule.currencySymbol}`}
               >
@@ -316,17 +316,17 @@ export const ManualCalculator: React.FC<ManualCalculatorProps> = ({
                 onClick={() => setSelectedTier('poor')}
                 className={`p-3.5 sm:p-4 rounded-2xl border-2 transition-all cursor-pointer flex flex-col justify-between ${
                   isSelected
-                    ? 'border-[#E1306C] bg-pink-50/25 shadow-sm ring-2 ring-pink-500/20'
-                    : 'border-zinc-200 hover:border-zinc-300 bg-zinc-50/40'
+                    ? 'border-[#E1306C] bg-pink-50/25 dark:bg-pink-950/20 shadow-sm ring-2 ring-pink-500/20'
+                    : 'border-zinc-200 dark:border-zinc-800 hover:border-zinc-300 dark:hover:border-zinc-700 bg-zinc-50/40 dark:bg-zinc-950/40'
                 }`}
               >
                 <div>
                   <div className="flex items-center justify-between gap-1 mb-2">
-                    <span className="text-[10px] font-black uppercase tracking-wider text-zinc-500 truncate">
+                    <span className="text-[10px] font-black uppercase tracking-wider text-zinc-500 dark:text-zinc-400 truncate">
                       ⚠️ Poor Service
                     </span>
 
-                    <span className="text-[10px] sm:text-xs font-black px-1.5 py-0.5 rounded-full bg-zinc-200 text-zinc-800 font-mono">
+                    <span className="text-[10px] sm:text-xs font-black px-1.5 py-0.5 rounded-full bg-zinc-200 dark:bg-zinc-800 text-zinc-800 dark:text-zinc-200 font-mono">
                       {pct}%
                     </span>
                   </div>
@@ -334,15 +334,15 @@ export const ManualCalculator: React.FC<ManualCalculatorProps> = ({
                   <div className="mt-1 space-y-1.5">
                     {/* Tip row */}
                     <div className="flex items-baseline justify-between gap-1">
-                      <span className="text-[11px] font-bold text-zinc-500">
+                      <span className="text-[11px] font-bold text-zinc-500 dark:text-zinc-400">
                         Tip:
                       </span>
                       <div className="text-right flex items-baseline gap-1">
-                        <span className={`font-mono font-black text-base sm:text-lg ${roundMode === 'tip' ? 'text-[#E1306C]' : 'text-zinc-900'}`}>
+                        <span className={`font-mono font-black text-base sm:text-lg ${roundMode === 'tip' ? 'text-[#E1306C]' : 'text-zinc-900 dark:text-zinc-100'}`}>
                           {rule.currencySymbol}{data.tip.toFixed(2)}
                         </span>
                         {roundMode === 'tip' && (
-                          <span className="text-[9px] font-bold text-[#E1306C] bg-pink-50 border border-pink-200 px-1 py-0.2 rounded font-sans">
+                          <span className="text-[9px] font-bold text-[#E1306C] bg-pink-50 dark:bg-pink-950/50 border border-pink-200 dark:border-pink-900/50 px-1 py-0.2 rounded font-sans">
                             Whole Tip
                           </span>
                         )}
@@ -350,29 +350,29 @@ export const ManualCalculator: React.FC<ManualCalculatorProps> = ({
                     </div>
 
                     {/* Total row */}
-                    <div className="flex items-baseline justify-between gap-1 pt-1 border-t border-zinc-200/60">
-                      <span className="text-[11px] font-bold text-zinc-500">
+                    <div className="flex items-baseline justify-between gap-1 pt-1 border-t border-zinc-200/60 dark:border-zinc-800">
+                      <span className="text-[11px] font-bold text-zinc-500 dark:text-zinc-400">
                         Total:
                       </span>
                       <div className="text-right flex items-baseline gap-1">
-                        <span className={`font-mono font-black text-base sm:text-lg ${roundMode === 'total' ? 'text-[#E1306C]' : 'text-zinc-800'}`}>
+                        <span className={`font-mono font-black text-base sm:text-lg ${roundMode === 'total' ? 'text-[#E1306C]' : 'text-zinc-800 dark:text-zinc-200'}`}>
                           {rule.currencySymbol}{data.total.toFixed(2)}
                         </span>
                         {roundMode === 'total' && (
-                          <span className="text-[9px] font-bold text-amber-700 bg-amber-50 border border-amber-200 px-1 py-0.2 rounded font-sans">
+                          <span className="text-[9px] font-bold text-amber-700 dark:text-amber-400 bg-amber-50 dark:bg-amber-950/50 border border-amber-200 dark:border-amber-800 px-1 py-0.2 rounded font-sans">
                             Whole Total
                           </span>
                         )}
                       </div>
                     </div>
 
-                    <div className="text-[10px] text-zinc-400 font-mono text-right">
+                    <div className="text-[10px] text-zinc-400 dark:text-zinc-500 font-mono text-right">
                       {data.percent}% on pre-tax
                     </div>
                   </div>
                 </div>
 
-                <div className="mt-2.5 pt-2 border-t border-zinc-200/60 text-[10px] sm:text-[11px] text-zinc-500 truncate">
+                <div className="mt-2.5 pt-2 border-t border-zinc-200/60 dark:border-zinc-800 text-[10px] sm:text-[11px] text-zinc-500 dark:text-zinc-400 truncate">
                   {rule.poorDescription || 'Sub-par service baseline'}
                 </div>
               </div>
@@ -389,16 +389,16 @@ export const ManualCalculator: React.FC<ManualCalculatorProps> = ({
                 onClick={() => setSelectedTier('min')}
                 className={`p-3.5 sm:p-4 rounded-2xl border-2 transition-all cursor-pointer flex flex-col justify-between ${
                   isSelected
-                    ? 'border-[#E1306C] bg-pink-50/25 shadow-sm ring-2 ring-pink-500/20'
-                    : 'border-zinc-200 hover:border-zinc-300 bg-zinc-50/40'
+                    ? 'border-[#E1306C] bg-pink-50/25 dark:bg-pink-950/20 shadow-sm ring-2 ring-pink-500/20'
+                    : 'border-zinc-200 dark:border-zinc-800 hover:border-zinc-300 dark:hover:border-zinc-700 bg-zinc-50/40 dark:bg-zinc-950/40'
                 }`}
               >
                 <div>
                   <div className="flex items-center justify-between mb-2">
-                    <span className="text-[10px] font-black uppercase tracking-wider text-zinc-500 truncate">
+                    <span className="text-[10px] font-black uppercase tracking-wider text-zinc-500 dark:text-zinc-400 truncate">
                       Minimum
                     </span>
-                    <span className="text-[10px] sm:text-xs font-black px-1.5 py-0.5 rounded-full bg-zinc-200 text-zinc-800 font-mono">
+                    <span className="text-[10px] sm:text-xs font-black px-1.5 py-0.5 rounded-full bg-zinc-200 dark:bg-zinc-800 text-zinc-800 dark:text-zinc-200 font-mono">
                       {rule.minPercent}%
                     </span>
                   </div>
@@ -406,15 +406,15 @@ export const ManualCalculator: React.FC<ManualCalculatorProps> = ({
                   <div className="mt-1 space-y-1.5">
                     {/* Tip row */}
                     <div className="flex items-baseline justify-between gap-1">
-                      <span className="text-[11px] font-bold text-zinc-500">
+                      <span className="text-[11px] font-bold text-zinc-500 dark:text-zinc-400">
                         Tip:
                       </span>
                       <div className="text-right flex items-baseline gap-1">
-                        <span className={`font-mono font-black text-base sm:text-lg ${roundMode === 'tip' ? 'text-[#E1306C]' : 'text-zinc-900'}`}>
+                        <span className={`font-mono font-black text-base sm:text-lg ${roundMode === 'tip' ? 'text-[#E1306C]' : 'text-zinc-900 dark:text-zinc-100'}`}>
                           {rule.currencySymbol}{data.tip.toFixed(2)}
                         </span>
                         {roundMode === 'tip' && (
-                          <span className="text-[9px] font-bold text-[#E1306C] bg-pink-50 border border-pink-200 px-1 py-0.2 rounded font-sans">
+                          <span className="text-[9px] font-bold text-[#E1306C] bg-pink-50 dark:bg-pink-950/50 border border-pink-200 dark:border-pink-900/50 px-1 py-0.2 rounded font-sans">
                             Whole Tip
                           </span>
                         )}
@@ -422,29 +422,29 @@ export const ManualCalculator: React.FC<ManualCalculatorProps> = ({
                     </div>
 
                     {/* Total row */}
-                    <div className="flex items-baseline justify-between gap-1 pt-1 border-t border-zinc-200/60">
-                      <span className="text-[11px] font-bold text-zinc-500">
+                    <div className="flex items-baseline justify-between gap-1 pt-1 border-t border-zinc-200/60 dark:border-zinc-800">
+                      <span className="text-[11px] font-bold text-zinc-500 dark:text-zinc-400">
                         Total:
                       </span>
                       <div className="text-right flex items-baseline gap-1">
-                        <span className={`font-mono font-black text-base sm:text-lg ${roundMode === 'total' ? 'text-[#E1306C]' : 'text-zinc-800'}`}>
+                        <span className={`font-mono font-black text-base sm:text-lg ${roundMode === 'total' ? 'text-[#E1306C]' : 'text-zinc-800 dark:text-zinc-200'}`}>
                           {rule.currencySymbol}{data.total.toFixed(2)}
                         </span>
                         {roundMode === 'total' && (
-                          <span className="text-[9px] font-bold text-amber-700 bg-amber-50 border border-amber-200 px-1 py-0.2 rounded font-sans">
+                          <span className="text-[9px] font-bold text-amber-700 dark:text-amber-400 bg-amber-50 dark:bg-amber-950/50 border border-amber-200 dark:border-amber-800 px-1 py-0.2 rounded font-sans">
                             Whole Total
                           </span>
                         )}
                       </div>
                     </div>
 
-                    <div className="text-[10px] text-zinc-400 font-mono text-right">
+                    <div className="text-[10px] text-zinc-400 dark:text-zinc-500 font-mono text-right">
                       {data.percent}% on pre-tax
                     </div>
                   </div>
                 </div>
 
-                <div className="mt-2.5 pt-2 border-t border-zinc-200/60 text-[10px] sm:text-[11px] text-zinc-500 truncate">
+                <div className="mt-2.5 pt-2 border-t border-zinc-200/60 dark:border-zinc-800 text-[10px] sm:text-[11px] text-zinc-500 dark:text-zinc-400 truncate">
                   {rule.minPercent}% ({rule.minLabel})
                 </div>
               </div>
@@ -461,13 +461,13 @@ export const ManualCalculator: React.FC<ManualCalculatorProps> = ({
                 onClick={() => setSelectedTier('avg')}
                 className={`p-3.5 sm:p-4 rounded-2xl border-2 transition-all cursor-pointer relative flex flex-col justify-between ${
                   isSelected
-                    ? 'border-transparent shadow-lg ring-2 ring-pink-500/30 bg-white'
-                    : 'border-pink-200 hover:border-pink-400 bg-white'
+                    ? 'border-transparent shadow-lg ring-2 ring-pink-500/30 bg-white dark:bg-zinc-900'
+                    : 'border-pink-200 dark:border-pink-900/60 hover:border-pink-400 bg-white dark:bg-zinc-900'
                 }`}
               >
                 {isSelected && (
                   <div className="absolute inset-0 rounded-2xl ig-gradient -z-10 p-[2px]">
-                    <div className="w-full h-full bg-white rounded-[14px]" />
+                    <div className="w-full h-full bg-white dark:bg-zinc-900 rounded-[14px]" />
                   </div>
                 )}
                 <span className="absolute -top-2.5 right-2 ig-gradient text-white text-[9px] font-black uppercase tracking-wider px-2 py-0.2 rounded-full shadow-xs flex items-center gap-0.5 whitespace-nowrap">
@@ -487,7 +487,7 @@ export const ManualCalculator: React.FC<ManualCalculatorProps> = ({
                   <div className="mt-1 space-y-1.5">
                     {/* Tip row */}
                     <div className="flex items-baseline justify-between gap-1">
-                      <span className="text-[11px] font-bold text-zinc-500">
+                      <span className="text-[11px] font-bold text-zinc-500 dark:text-zinc-400">
                         Tip:
                       </span>
                       <div className="text-right flex items-baseline gap-1">
@@ -495,7 +495,7 @@ export const ManualCalculator: React.FC<ManualCalculatorProps> = ({
                           {rule.currencySymbol}{data.tip.toFixed(2)}
                         </span>
                         {roundMode === 'tip' && (
-                          <span className="text-[9px] font-bold text-[#E1306C] bg-pink-50 border border-pink-200 px-1 py-0.2 rounded font-sans">
+                          <span className="text-[9px] font-bold text-[#E1306C] bg-pink-50 dark:bg-pink-950/50 border border-pink-200 dark:border-pink-900/50 px-1 py-0.2 rounded font-sans">
                             Whole Tip
                           </span>
                         )}
@@ -503,29 +503,29 @@ export const ManualCalculator: React.FC<ManualCalculatorProps> = ({
                     </div>
 
                     {/* Total row */}
-                    <div className="flex items-baseline justify-between gap-1 pt-1 border-t border-pink-100">
-                      <span className="text-[11px] font-bold text-zinc-500">
+                    <div className="flex items-baseline justify-between gap-1 pt-1 border-t border-pink-100 dark:border-pink-950/60">
+                      <span className="text-[11px] font-bold text-zinc-500 dark:text-zinc-400">
                         Total:
                       </span>
                       <div className="text-right flex items-baseline gap-1">
-                        <span className={`font-mono font-black text-base sm:text-lg ${roundMode === 'total' ? 'text-[#E1306C]' : 'text-zinc-900'}`}>
+                        <span className={`font-mono font-black text-base sm:text-lg ${roundMode === 'total' ? 'text-[#E1306C]' : 'text-zinc-900 dark:text-zinc-100'}`}>
                           {rule.currencySymbol}{data.total.toFixed(2)}
                         </span>
                         {roundMode === 'total' && (
-                          <span className="text-[9px] font-bold text-amber-700 bg-amber-50 border border-amber-200 px-1 py-0.2 rounded font-sans">
+                          <span className="text-[9px] font-bold text-amber-700 dark:text-amber-400 bg-amber-50 dark:bg-amber-950/50 border border-amber-200 dark:border-amber-800 px-1 py-0.2 rounded font-sans">
                             Whole Total
                           </span>
                         )}
                       </div>
                     </div>
 
-                    <div className="text-[10px] text-zinc-400 font-mono text-right">
+                    <div className="text-[10px] text-zinc-400 dark:text-zinc-500 font-mono text-right">
                       {data.percent}% on pre-tax
                     </div>
                   </div>
                 </div>
 
-                <div className="mt-2.5 pt-2 border-t border-pink-100 text-[10px] sm:text-[11px] text-zinc-600 truncate">
+                <div className="mt-2.5 pt-2 border-t border-pink-100 dark:border-pink-950/60 text-[10px] sm:text-[11px] text-zinc-600 dark:text-zinc-400 truncate">
                   {rule.avgPercent}% ({rule.avgLabel})
                 </div>
               </div>
@@ -542,16 +542,16 @@ export const ManualCalculator: React.FC<ManualCalculatorProps> = ({
                 onClick={() => setSelectedTier('high')}
                 className={`p-3.5 sm:p-4 rounded-2xl border-2 transition-all cursor-pointer flex flex-col justify-between ${
                   isSelected
-                    ? 'border-[#E1306C] bg-pink-50/25 shadow-sm ring-2 ring-pink-500/20'
-                    : 'border-zinc-200 hover:border-zinc-300 bg-zinc-50/40'
+                    ? 'border-[#E1306C] bg-pink-50/25 dark:bg-pink-950/20 shadow-sm ring-2 ring-pink-500/20'
+                    : 'border-zinc-200 dark:border-zinc-800 hover:border-zinc-300 dark:hover:border-zinc-700 bg-zinc-50/40 dark:bg-zinc-950/40'
                 }`}
               >
                 <div>
                   <div className="flex items-center justify-between mb-2">
-                    <span className="text-[10px] font-black uppercase tracking-wider text-zinc-500 truncate">
+                    <span className="text-[10px] font-black uppercase tracking-wider text-zinc-500 dark:text-zinc-400 truncate">
                       Generous
                     </span>
-                    <span className="text-[10px] sm:text-xs font-black px-1.5 py-0.5 rounded-full bg-zinc-200 text-zinc-800 font-mono">
+                    <span className="text-[10px] sm:text-xs font-black px-1.5 py-0.5 rounded-full bg-zinc-200 dark:bg-zinc-800 text-zinc-800 dark:text-zinc-200 font-mono">
                       {rule.highPercent}%
                     </span>
                   </div>
@@ -559,15 +559,15 @@ export const ManualCalculator: React.FC<ManualCalculatorProps> = ({
                   <div className="mt-1 space-y-1.5">
                     {/* Tip row */}
                     <div className="flex items-baseline justify-between gap-1">
-                      <span className="text-[11px] font-bold text-zinc-500">
+                      <span className="text-[11px] font-bold text-zinc-500 dark:text-zinc-400">
                         Tip:
                       </span>
                       <div className="text-right flex items-baseline gap-1">
-                        <span className={`font-mono font-black text-base sm:text-lg ${roundMode === 'tip' ? 'text-[#E1306C]' : 'text-zinc-900'}`}>
+                        <span className={`font-mono font-black text-base sm:text-lg ${roundMode === 'tip' ? 'text-[#E1306C]' : 'text-zinc-900 dark:text-zinc-100'}`}>
                           {rule.currencySymbol}{data.tip.toFixed(2)}
                         </span>
                         {roundMode === 'tip' && (
-                          <span className="text-[9px] font-bold text-[#E1306C] bg-pink-50 border border-pink-200 px-1 py-0.2 rounded font-sans">
+                          <span className="text-[9px] font-bold text-[#E1306C] bg-pink-50 dark:bg-pink-950/50 border border-pink-200 dark:border-pink-900/50 px-1 py-0.2 rounded font-sans">
                             Whole Tip
                           </span>
                         )}
@@ -575,29 +575,29 @@ export const ManualCalculator: React.FC<ManualCalculatorProps> = ({
                     </div>
 
                     {/* Total row */}
-                    <div className="flex items-baseline justify-between gap-1 pt-1 border-t border-zinc-200/60">
-                      <span className="text-[11px] font-bold text-zinc-500">
+                    <div className="flex items-baseline justify-between gap-1 pt-1 border-t border-zinc-200/60 dark:border-zinc-800">
+                      <span className="text-[11px] font-bold text-zinc-500 dark:text-zinc-400">
                         Total:
                       </span>
                       <div className="text-right flex items-baseline gap-1">
-                        <span className={`font-mono font-black text-base sm:text-lg ${roundMode === 'total' ? 'text-[#E1306C]' : 'text-zinc-800'}`}>
+                        <span className={`font-mono font-black text-base sm:text-lg ${roundMode === 'total' ? 'text-[#E1306C]' : 'text-zinc-800 dark:text-zinc-200'}`}>
                           {rule.currencySymbol}{data.total.toFixed(2)}
                         </span>
                         {roundMode === 'total' && (
-                          <span className="text-[9px] font-bold text-amber-700 bg-amber-50 border border-amber-200 px-1 py-0.2 rounded font-sans">
+                          <span className="text-[9px] font-bold text-amber-700 dark:text-amber-400 bg-amber-50 dark:bg-amber-950/50 border border-amber-200 dark:border-amber-800 px-1 py-0.2 rounded font-sans">
                             Whole Total
                           </span>
                         )}
                       </div>
                     </div>
 
-                    <div className="text-[10px] text-zinc-400 font-mono text-right">
+                    <div className="text-[10px] text-zinc-400 dark:text-zinc-500 font-mono text-right">
                       {data.percent}% on pre-tax
                     </div>
                   </div>
                 </div>
 
-                <div className="mt-2.5 pt-2 border-t border-zinc-200/60 text-[10px] sm:text-[11px] text-zinc-500 truncate">
+                <div className="mt-2.5 pt-2 border-t border-zinc-200/60 dark:border-zinc-800 text-[10px] sm:text-[11px] text-zinc-500 dark:text-zinc-400 truncate">
                   {rule.highPercent}% ({rule.highLabel})
                 </div>
               </div>

@@ -14,6 +14,9 @@ import { LanguageCode, getTranslation } from './data/translations';
 
 const HISTORY_STORAGE_KEY = 'globaltip_scans_history';
 const LANGUAGE_STORAGE_KEY = 'globaltip_user_language';
+const THEME_STORAGE_KEY = 'globaltip_user_theme';
+
+export type ThemeMode = 'dark' | 'light';
 
 export default function App() {
   const [activeTab, setActiveTab] = useState<ActiveTab>('scanner');
@@ -21,6 +24,34 @@ export default function App() {
   const [isLocating, setIsLocating] = useState<boolean>(false);
   const [isLocationModalOpen, setIsLocationModalOpen] = useState<boolean>(false);
   const [toastMessage, setToastMessage] = useState<{ text: string; type: 'success' | 'error' | 'info' } | null>(null);
+
+  // Default to Dark Mode as requested
+  const [theme, setTheme] = useState<ThemeMode>(() => {
+    try {
+      const saved = localStorage.getItem(THEME_STORAGE_KEY);
+      if (saved === 'light' || saved === 'dark') {
+        return saved as ThemeMode;
+      }
+    } catch {}
+    return 'dark'; // UI defaults to dark mode
+  });
+
+  useEffect(() => {
+    try {
+      localStorage.setItem(THEME_STORAGE_KEY, theme);
+    } catch {}
+    if (theme === 'dark') {
+      document.documentElement.classList.add('dark');
+      document.documentElement.setAttribute('data-theme', 'dark');
+    } else {
+      document.documentElement.classList.remove('dark');
+      document.documentElement.setAttribute('data-theme', 'light');
+    }
+  }, [theme]);
+
+  const handleToggleTheme = () => {
+    setTheme((prev) => (prev === 'dark' ? 'light' : 'dark'));
+  };
 
   const [currentLang, setCurrentLang] = useState<LanguageCode>(() => {
     try {
@@ -139,10 +170,15 @@ export default function App() {
       // Run local client-side OCR in parallel to capture merchant name, city (e.g. Hong Kong, Chicago) & surcharges
       let clientOcrResult = null;
       try {
-        setScanStep('Scanning text for restaurant name & city...');
-        clientOcrResult = await runClientOcr(base64Image, (_p, status) => {
-          setScanStep(status);
-        });
+        if (sampleInfo) {
+          setScanStep('Loading test receipt details...');
+          clientOcrResult = await runClientOcr(base64Image);
+        } else {
+          setScanStep('Scanning text for restaurant name & city...');
+          clientOcrResult = await runClientOcr(base64Image, (_p, status) => {
+            setScanStep(status);
+          });
+        }
       } catch (ocrErr) {
         console.warn('Client OCR notice:', ocrErr);
       }
@@ -362,7 +398,9 @@ export default function App() {
   };
 
   return (
-    <div className="min-h-screen bg-zinc-50 text-zinc-900 flex flex-col font-sans selection:bg-pink-100 selection:text-pink-900">
+    <div className={`min-h-screen flex flex-col font-sans transition-colors duration-200 selection:bg-pink-500/20 selection:text-pink-500 ${
+      theme === 'dark' ? 'dark bg-zinc-950 text-zinc-100' : 'bg-zinc-50 text-zinc-900'
+    }`}>
       {/* Header with Navigation and GPS selector */}
       <Header
         activeTab={activeTab}
@@ -378,6 +416,8 @@ export default function App() {
         isLocating={isLocating}
         currentLang={currentLang}
         onSelectLang={handleSelectLang}
+        theme={theme}
+        onToggleTheme={handleToggleTheme}
       />
 
       {/* Floating Location Refresh Toast Notification */}
@@ -404,15 +444,15 @@ export default function App() {
       {/* Main Content Area */}
       <main className="flex-1 max-w-5xl w-full mx-auto px-3 sm:px-6 py-4 sm:py-8 pb-28 sm:pb-8">
         {scanError && (
-          <div className="mb-6 p-4 rounded-2xl bg-rose-50 border border-rose-200 text-rose-800 text-xs sm:text-sm flex items-start gap-3 shadow-sm animate-in fade-in">
-            <AlertCircle className="w-5 h-5 text-rose-600 flex-shrink-0 mt-0.5" />
+          <div className="mb-6 p-4 rounded-2xl bg-rose-50 dark:bg-rose-950/40 border border-rose-200 dark:border-rose-900 text-rose-800 dark:text-rose-200 text-xs sm:text-sm flex items-start gap-3 shadow-sm animate-in fade-in">
+            <AlertCircle className="w-5 h-5 text-rose-600 dark:text-rose-400 flex-shrink-0 mt-0.5" />
             <div className="flex-1">
               <span className="font-bold block">Receipt Scan Error</span>
               <p>{scanError}</p>
             </div>
             <button
               onClick={() => setScanError(null)}
-              className="text-rose-600 hover:text-rose-900 font-bold text-xs cursor-pointer"
+              className="text-rose-600 dark:text-rose-400 hover:text-rose-900 font-bold text-xs cursor-pointer"
             >
               Dismiss
             </button>
@@ -454,10 +494,10 @@ export default function App() {
 
         {/* Minimal Sponsored Banner Container (Below all inputs and outputs) */}
         <div
-          className="mt-[40px] w-full max-w-[320px] sm:max-w-[468px] h-[60px] mx-auto flex items-center justify-center border border-zinc-200/80 bg-zinc-50/60 rounded-xl transition-colors"
+          className="mt-[40px] w-full max-w-[320px] sm:max-w-[468px] h-[60px] mx-auto flex items-center justify-center border border-zinc-200/80 dark:border-zinc-800 bg-zinc-50/60 dark:bg-zinc-900/60 rounded-xl transition-colors"
           aria-label="Sponsored Content"
         >
-          <span className="text-[11px] font-semibold uppercase tracking-wider text-zinc-400 select-none">
+          <span className="text-[11px] font-semibold uppercase tracking-wider text-zinc-400 dark:text-zinc-500 select-none">
             Sponsored
           </span>
         </div>
@@ -474,10 +514,10 @@ export default function App() {
       />
 
       {/* Footer */}
-      <footer className="border-t border-zinc-200/80 bg-white py-6 pb-24 sm:pb-6 mt-8 sm:mt-12 text-center text-xs text-zinc-500">
+      <footer className="border-t border-zinc-200/80 dark:border-zinc-800/80 bg-white dark:bg-zinc-950 py-6 pb-24 sm:pb-6 mt-8 sm:mt-12 text-center text-xs text-zinc-500 dark:text-zinc-400 transition-colors">
         <div className="max-w-5xl mx-auto px-4 flex flex-col sm:flex-row items-center justify-between gap-2">
           <div className="flex items-center gap-1.5 justify-center">
-            <span className="font-black text-zinc-900">Just the <span className="ig-gradient-text">Tip</span></span>
+            <span className="font-black text-zinc-900 dark:text-zinc-100">Just the <span className="ig-gradient-text">Tip</span></span>
             <span>•</span>
             <span>Accurate GPS tipping etiquette for travelers &amp; diners worldwide</span>
           </div>

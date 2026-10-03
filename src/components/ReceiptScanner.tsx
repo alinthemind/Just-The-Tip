@@ -33,12 +33,21 @@ export const ReceiptScanner: React.FC<ReceiptScannerProps> = ({
   const nativeCameraInputRef = useRef<HTMLInputElement | null>(null);
 
   const processFile = async (file: File) => {
-    if (!file.type.startsWith('image/')) {
+    if (!file.type.startsWith('image/') && !file.name.toLowerCase().match(/\.(jpe?g|png|webp|heic|heif)$/i)) {
       alert('Please upload an image file (JPG, PNG, WEBP, or HEIC).');
       return;
     }
-    const photoGps = await extractExifGps(file);
+    let photoGps: ExifGpsCoords | null = null;
+    try {
+      photoGps = await extractExifGps(file);
+    } catch (e) {
+      console.warn('Exif extract notice:', e);
+    }
+
     const reader = new FileReader();
+    reader.onerror = (err) => {
+      console.warn('FileReader error:', err);
+    };
     reader.onload = (e) => {
       const result = e.target?.result as string;
       if (result) {
@@ -115,20 +124,20 @@ export const ReceiptScanner: React.FC<ReceiptScannerProps> = ({
       />
 
       {/* Main Snap Card */}
-      <div className="bg-white rounded-3xl border border-zinc-200/80 shadow-[0_2px_12px_rgba(0,0,0,0.04)] overflow-hidden p-4 sm:p-7 relative">
+      <div className="bg-white dark:bg-zinc-900 rounded-3xl border border-zinc-200/80 dark:border-zinc-800 shadow-[0_2px_12px_rgba(0,0,0,0.04)] dark:shadow-none overflow-hidden p-4 sm:p-7 relative transition-colors">
         <div className="absolute top-0 left-0 right-0 h-1.5 ig-gradient" />
 
         <div className="text-center max-w-sm mx-auto mb-4 sm:mb-5 pt-0.5">
-          <div className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-pink-50 border border-pink-200/70 text-[11px] font-bold mb-2">
+          <div className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-pink-50 dark:bg-pink-950/50 border border-pink-200/70 dark:border-pink-900/50 text-[11px] font-bold mb-2">
             <Sparkles className="w-3 h-3 text-[#E1306C]" />
             <span className="ig-gradient-text">Pre-Tax Tip Protection</span>
           </div>
 
-          <h2 className="text-2xl sm:text-3xl font-black tracking-tight text-zinc-900 leading-tight">
+          <h2 className="text-2xl sm:text-3xl font-black tracking-tight text-zinc-900 dark:text-zinc-100 leading-tight">
             Snap Receipt. <span className="ig-gradient-text">Just the Tip.</span>
           </h2>
 
-          <p className="text-xs text-zinc-500 mt-1">
+          <p className="text-xs text-zinc-500 dark:text-zinc-400 mt-1">
             Uses receipt restaurant &amp; location first, photo GPS second. Calculates strictly on pre-tax subtotal.
           </p>
         </div>
@@ -152,13 +161,13 @@ export const ReceiptScanner: React.FC<ReceiptScannerProps> = ({
             </div>
 
             <div className="space-y-1 max-w-xs">
-              <h3 className="font-black text-zinc-900 text-sm">Reading Receipt &amp; Location...</h3>
-              <p className="text-xs text-zinc-500 font-mono min-h-[1.25rem] animate-pulse">
+              <h3 className="font-black text-zinc-900 dark:text-zinc-100 text-sm">Reading Receipt &amp; Location...</h3>
+              <p className="text-xs text-zinc-500 dark:text-zinc-400 font-mono min-h-[1.25rem] animate-pulse">
                 {scanStep || 'Detecting restaurant, city & pre-tax subtotal...'}
               </p>
             </div>
 
-            <div className="w-40 bg-zinc-100 rounded-full h-1.5 mt-3 overflow-hidden">
+            <div className="w-40 bg-zinc-100 dark:bg-zinc-800 rounded-full h-1.5 mt-3 overflow-hidden">
               <div className="ig-gradient h-1.5 rounded-full animate-pulse w-4/5" />
             </div>
           </div>
@@ -171,8 +180,8 @@ export const ReceiptScanner: React.FC<ReceiptScannerProps> = ({
               onDragLeave={handleDragLeave}
               className={`border-2 border-dashed rounded-2xl p-4 sm:p-6 text-center transition-all ${
                 dragActive
-                  ? 'border-[#E1306C] bg-pink-50/40 scale-[1.01]'
-                  : 'border-zinc-200 hover:border-pink-300 bg-zinc-50/40'
+                  ? 'border-[#E1306C] bg-pink-50/40 dark:bg-pink-950/20 scale-[1.01]'
+                  : 'border-zinc-200 dark:border-zinc-800 hover:border-pink-300 dark:hover:border-pink-500/50 bg-zinc-50/40 dark:bg-zinc-950/40'
               }`}
             >
               <div className="flex flex-col sm:flex-row items-center justify-center gap-2.5 max-w-md mx-auto">
@@ -194,21 +203,21 @@ export const ReceiptScanner: React.FC<ReceiptScannerProps> = ({
                 <button
                   type="button"
                   onClick={() => fileInputRef.current?.click()}
-                  className="w-full sm:w-auto flex-1 flex items-center justify-center gap-2 px-5 py-3 rounded-2xl bg-white hover:bg-zinc-50 active:scale-95 border border-zinc-200 text-zinc-900 font-bold text-sm shadow-xs transition-all cursor-pointer min-h-[46px]"
+                  className="w-full sm:w-auto flex-1 flex items-center justify-center gap-2 px-5 py-3 rounded-2xl bg-white dark:bg-zinc-800 hover:bg-zinc-50 dark:hover:bg-zinc-700/80 active:scale-95 border border-zinc-200 dark:border-zinc-700 text-zinc-900 dark:text-zinc-100 font-bold text-sm shadow-xs transition-all cursor-pointer min-h-[46px]"
                 >
-                  <Upload className="w-4 h-4 text-zinc-600" />
+                  <Upload className="w-4 h-4 text-zinc-600 dark:text-zinc-300" />
                   {t('uploadPhoto')}
                 </button>
               </div>
 
-              <div className="flex flex-wrap items-center justify-center gap-2 text-[11px] text-zinc-500 mt-3 font-medium">
+              <div className="flex flex-wrap items-center justify-center gap-2 text-[11px] text-zinc-500 dark:text-zinc-400 mt-3 font-medium">
                 <span className="flex items-center gap-1">
-                  <ShieldCheck className="w-3.5 h-3.5 text-emerald-600" />
+                  <ShieldCheck className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" />
                   {t('preTaxBasis')}
                 </span>
                 <span>•</span>
                 <span className="flex items-center gap-1">
-                  <Lock className="w-3.5 h-3.5 text-pink-600" />
+                  <Lock className="w-3.5 h-3.5 text-pink-600 dark:text-pink-400" />
                   {t('zeroHistory')}
                 </span>
                 <span>•</span>
@@ -220,17 +229,17 @@ export const ReceiptScanner: React.FC<ReceiptScannerProps> = ({
       </div>
 
       {/* Quick Test Demo Receipts */}
-      <div className="bg-white rounded-3xl border border-zinc-200/80 p-4 sm:p-5 shadow-[0_2px_12px_rgba(0,0,0,0.03)]">
+      <div className="bg-white dark:bg-zinc-900 rounded-3xl border border-zinc-200/80 dark:border-zinc-800 p-4 sm:p-5 shadow-[0_2px_12px_rgba(0,0,0,0.03)] dark:shadow-none transition-colors">
         <div className="flex items-center justify-between mb-2.5">
           <div className="flex items-center gap-2">
-            <span className="text-xs sm:text-sm font-black text-zinc-900">
+            <span className="text-xs sm:text-sm font-black text-zinc-900 dark:text-zinc-100">
               {t('demoReceiptsTitle')}
             </span>
-            <span className="text-[9px] font-extrabold ig-gradient-text bg-pink-50 border border-pink-200/70 px-2 py-0.5 rounded-full uppercase tracking-wider">
+            <span className="text-[9px] font-extrabold ig-gradient-text bg-pink-50 dark:bg-pink-950/50 border border-pink-200/70 dark:border-pink-900/50 px-2 py-0.5 rounded-full uppercase tracking-wider">
               {t('quickDemo')}
             </span>
           </div>
-          <span className="text-[11px] text-zinc-400 hidden sm:block">{t('clickSampleToTest')}</span>
+          <span className="text-[11px] text-zinc-400 dark:text-zinc-500 hidden sm:block">{t('clickSampleToTest')}</span>
         </div>
 
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-2">
@@ -239,29 +248,29 @@ export const ReceiptScanner: React.FC<ReceiptScannerProps> = ({
               key={sample.id}
               onClick={() => handleSampleSelect(sample)}
               disabled={isScanning}
-              className="text-left p-3 rounded-2xl border border-zinc-200/80 hover:border-pink-300 hover:shadow-sm transition-all group flex flex-col justify-between bg-zinc-50/50 hover:bg-white cursor-pointer disabled:opacity-50 active:scale-98"
+              className="text-left p-3 rounded-2xl border border-zinc-200/80 dark:border-zinc-800 hover:border-pink-300 dark:hover:border-pink-500/50 hover:shadow-sm transition-all group flex flex-col justify-between bg-zinc-50/50 dark:bg-zinc-950/50 hover:bg-white dark:hover:bg-zinc-800/80 cursor-pointer disabled:opacity-50 active:scale-98"
             >
               <div>
                 <div className="flex items-center justify-between gap-1 mb-1">
                   <div className="flex items-center gap-1.5">
                     <span className="text-base">{sample.flag}</span>
-                    <span className="text-xs font-bold text-zinc-800">{sample.city}</span>
+                    <span className="text-xs font-bold text-zinc-800 dark:text-zinc-200">{sample.city}</span>
                   </div>
-                  <span className="text-xs font-mono font-black text-zinc-900">
+                  <span className="text-xs font-mono font-black text-zinc-900 dark:text-zinc-100">
                     {sample.currencySymbol}{sample.total.toFixed(2)}
                   </span>
                 </div>
 
-                <div className="font-bold text-xs text-zinc-900 group-hover:text-[#E1306C] transition-colors line-clamp-1">
+                <div className="font-bold text-xs text-zinc-900 dark:text-zinc-100 group-hover:text-[#E1306C] dark:group-hover:text-pink-400 transition-colors line-clamp-1">
                   {sample.name}
                 </div>
 
-                <div className="text-[10px] text-zinc-500 mt-1 line-clamp-1">
+                <div className="text-[10px] text-zinc-500 dark:text-zinc-400 mt-1 line-clamp-1">
                   {sample.notes}
                 </div>
               </div>
 
-              <div className="mt-2.5 pt-2 border-t border-zinc-200/60 flex items-center justify-between text-[10px] font-bold ig-gradient-text">
+              <div className="mt-2.5 pt-2 border-t border-zinc-200/60 dark:border-zinc-800 flex items-center justify-between text-[10px] font-bold ig-gradient-text">
                 <span>{t('testScan')}</span>
                 <ArrowRight className="w-3 h-3 text-[#E1306C] group-hover:translate-x-0.5 transition-transform" />
               </div>

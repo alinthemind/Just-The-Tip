@@ -32,34 +32,34 @@ export const LocationPickerModal: React.FC<LocationPickerModalProps> = ({
   );
 
   return (
-    <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4 animate-in fade-in">
-      <div className="bg-white rounded-3xl max-w-lg w-full max-h-[85vh] flex flex-col shadow-2xl border border-zinc-200 overflow-hidden relative">
+    <div className="fixed inset-0 z-50 bg-black/70 backdrop-blur-sm flex items-center justify-center p-4 animate-in fade-in">
+      <div className="bg-white dark:bg-zinc-900 rounded-3xl max-w-lg w-full max-h-[85vh] flex flex-col shadow-2xl border border-zinc-200 dark:border-zinc-800 overflow-hidden relative transition-colors">
         {/* Instagram top gradient */}
         <div className="h-1.5 ig-gradient w-full" />
 
         {/* Header */}
-        <div className="p-4 sm:p-5 border-b border-zinc-100 flex items-center justify-between">
+        <div className="p-4 sm:p-5 border-b border-zinc-100 dark:border-zinc-800 flex items-center justify-between">
           <div className="flex items-center gap-2.5">
             <div className="ig-story-ring-sm">
-              <div className="w-8 h-8 rounded-full bg-white flex items-center justify-center text-[#E1306C]">
+              <div className="w-8 h-8 rounded-full bg-white dark:bg-zinc-800 flex items-center justify-center text-[#E1306C]">
                 <MapPin className="w-4 h-4" />
               </div>
             </div>
             <div>
-              <h3 className="font-black text-zinc-900 text-sm sm:text-base">Select Dining Location</h3>
-              <p className="text-[11px] text-zinc-500">Tipping culture &amp; rates adapt to your destination</p>
+              <h3 className="font-black text-zinc-900 dark:text-zinc-100 text-sm sm:text-base">Select Dining Location</h3>
+              <p className="text-[11px] text-zinc-500 dark:text-zinc-400">Tipping culture &amp; rates adapt to your destination</p>
             </div>
           </div>
           <button
             onClick={onClose}
-            className="p-2 rounded-full hover:bg-zinc-100 text-zinc-500 hover:text-zinc-800 transition-colors cursor-pointer"
+            className="p-2 rounded-full hover:bg-zinc-100 dark:hover:bg-zinc-800 text-zinc-500 dark:text-zinc-400 hover:text-zinc-800 dark:hover:text-zinc-200 transition-colors cursor-pointer"
           >
             <X className="w-5 h-5" />
           </button>
         </div>
 
         {/* GPS Button */}
-        <div className="p-4 bg-zinc-50/80 border-b border-zinc-200/80">
+        <div className="p-4 bg-zinc-50/80 dark:bg-zinc-950/60 border-b border-zinc-200/80 dark:border-zinc-800">
           <button
             onClick={() => {
               onRefreshGps();
@@ -72,7 +72,7 @@ export const LocationPickerModal: React.FC<LocationPickerModalProps> = ({
           </button>
 
           {currentLocation.isGps && (
-            <div className="mt-2 text-center text-[11px] text-[#E1306C] flex items-center justify-center gap-1 font-bold">
+            <div className="mt-2 text-center text-[11px] text-[#E1306C] dark:text-pink-400 flex items-center justify-center gap-1 font-bold">
               <Check className="w-3.5 h-3.5" />
               <span>Current GPS: {currentLocation.city || currentLocation.countryName} ({currentLocation.countryCode})</span>
             </div>
@@ -88,13 +88,13 @@ export const LocationPickerModal: React.FC<LocationPickerModalProps> = ({
               placeholder="Search 20+ countries (e.g. France, Japan, Mexico)..."
               value={search}
               onChange={(e) => setSearch(e.target.value)}
-              className="w-full pl-10 pr-4 py-2.5 text-xs rounded-xl border border-zinc-200 bg-zinc-50/60 focus:bg-white focus:outline-none focus:ring-2 focus:ring-pink-500/20 focus:border-[#E1306C]"
+              className="w-full pl-10 pr-4 py-2.5 text-xs rounded-xl border border-zinc-200 dark:border-zinc-700 bg-zinc-50/60 dark:bg-zinc-950 text-zinc-900 dark:text-zinc-100 placeholder-zinc-400 focus:bg-white dark:focus:bg-zinc-900 focus:outline-none focus:ring-2 focus:ring-pink-500/20 focus:border-[#E1306C]"
             />
           </div>
         </div>
 
         {/* Country List */}
-        <div className="flex-1 overflow-y-auto p-4 pt-1 space-y-1 divide-y divide-zinc-100">
+        <div className="flex-1 overflow-y-auto p-4 pt-1 space-y-1 divide-y divide-zinc-100 dark:divide-zinc-800">
           {filtered.map((item) => {
             const isSelected = currentLocation.countryCode === item.countryCode;
             return (
@@ -106,22 +106,22 @@ export const LocationPickerModal: React.FC<LocationPickerModalProps> = ({
                 }}
                 className={`w-full flex items-center justify-between p-3 rounded-2xl transition-all cursor-pointer text-left ${
                   isSelected
-                    ? 'bg-pink-50/60 text-zinc-950 font-bold border border-pink-200'
-                    : 'hover:bg-zinc-50 text-zinc-800'
+                    ? 'bg-pink-50/60 dark:bg-pink-950/40 text-zinc-950 dark:text-zinc-100 font-bold border border-pink-200 dark:border-pink-800/60'
+                    : 'hover:bg-zinc-50 dark:hover:bg-zinc-800/60 text-zinc-800 dark:text-zinc-200'
                 }`}
               >
                 <div className="flex items-center gap-3">
                   <div className="ig-story-ring-sm">
-                    <span className="w-8 h-8 rounded-full bg-white flex items-center justify-center text-lg">
+                    <span className="w-8 h-8 rounded-full bg-white dark:bg-zinc-800 flex items-center justify-center text-lg">
                       {item.flag}
                     </span>
                   </div>
                   <div>
                     <div className="text-xs sm:text-sm font-black flex items-center gap-2">
                       <span>{item.countryName}</span>
-                      <span className="text-[10px] text-zinc-400 font-mono">({item.currencyCode})</span>
+                      <span className="text-[10px] text-zinc-400 dark:text-zinc-500 font-mono">({item.currencyCode})</span>
                     </div>
-                    <div className="text-[11px] text-zinc-500 font-medium">
+                    <div className="text-[11px] text-zinc-500 dark:text-zinc-400 font-medium">
                       {item.isTippingDiscouraged
                         ? 'No Tipping (0%)'
                         : `Min ${item.minPercent}% • Avg ${item.avgPercent}% • High ${item.highPercent}%`}
@@ -134,14 +134,14 @@ export const LocationPickerModal: React.FC<LocationPickerModalProps> = ({
                     <Check className="w-3.5 h-3.5" />
                   </span>
                 ) : (
-                  <span className="text-xs text-zinc-400 font-mono">{item.countryCode}</span>
+                  <span className="text-xs text-zinc-400 dark:text-zinc-500 font-mono">{item.countryCode}</span>
                 )}
               </button>
             );
           })}
 
           {filtered.length === 0 && (
-            <div className="p-6 text-center text-xs text-zinc-500">
+            <div className="p-6 text-center text-xs text-zinc-500 dark:text-zinc-400">
               No country found for "{search}".
             </div>
           )}
