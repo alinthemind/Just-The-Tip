@@ -100,6 +100,7 @@ export const TRANSLATIONS: Record<LanguageCode, Record<string, string>> = {
     copy: 'Copy',
     copied: 'Copied',
     localCustoms: 'Local Customs',
+    locApproximate: 'Approximate location',
   },
   fr: {
     appName: 'Just the Tip',
@@ -181,6 +182,7 @@ export const TRANSLATIONS: Record<LanguageCode, Record<string, string>> = {
     copy: 'Copier',
     copied: 'Copié',
     localCustoms: 'Coutumes locales',
+    locApproximate: 'Position approximative',
   },
   es: {
     appName: 'Just the Tip',
@@ -262,6 +264,7 @@ export const TRANSLATIONS: Record<LanguageCode, Record<string, string>> = {
     copy: 'Copiar',
     copied: 'Copiado',
     localCustoms: 'Costumbres locales',
+    locApproximate: 'Ubicación aproximada',
   },
   de: {
     appName: 'Just the Tip',
@@ -343,6 +346,7 @@ export const TRANSLATIONS: Record<LanguageCode, Record<string, string>> = {
     copy: 'Kopieren',
     copied: 'Kopiert',
     localCustoms: 'Lokale Bräuche',
+    locApproximate: 'Ungefährer Standort',
   },
   tlh: {
     appName: 'Just the Tip',
@@ -424,6 +428,7 @@ export const TRANSLATIONS: Record<LanguageCode, Record<string, string>> = {
     copy: 'lIS',
     copied: 'lISlu’',
     localCustoms: 'ta’ lIy',
+    locApproximate: 'Daq rap',
   },
   'zh-CN': {
     appName: 'Just the Tip',
@@ -505,6 +510,7 @@ export const TRANSLATIONS: Record<LanguageCode, Record<string, string>> = {
     copy: '复制',
     copied: '已复制',
     localCustoms: '当地习俗',
+    locApproximate: '大致位置',
   },
   'zh-TW': {
     appName: 'Just the Tip',
@@ -586,6 +592,7 @@ export const TRANSLATIONS: Record<LanguageCode, Record<string, string>> = {
     copy: '複製',
     copied: '已複製',
     localCustoms: '當地習俗',
+    locApproximate: '大致位置',
   },
   ja: {
     appName: 'Just the Tip',
@@ -667,6 +674,7 @@ export const TRANSLATIONS: Record<LanguageCode, Record<string, string>> = {
     copy: 'コピー',
     copied: 'コピー済み',
     localCustoms: '現地の習慣',
+    locApproximate: 'おおよその位置',
   },
   ko: {
     appName: 'Just the Tip',
@@ -748,6 +756,7 @@ export const TRANSLATIONS: Record<LanguageCode, Record<string, string>> = {
     copy: '복사',
     copied: '복사됨',
     localCustoms: '현지 관습',
+    locApproximate: '대략적인 위치',
   },
 };
 

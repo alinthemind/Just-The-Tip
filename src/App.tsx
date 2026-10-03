@@ -10,7 +10,7 @@ import { TipResults } from './components/TipResults';
 import { ManualCalculator } from './components/ManualCalculator';
 import { CultureGuide } from './components/CultureGuide';
 import { LocationPickerModal } from './components/LocationPickerModal';
-import { AlertCircle, CheckCircle2, Lock, X } from 'lucide-react';
+import { AlertCircle, Lock, Navigation, Wifi, X } from 'lucide-react';
 import { LanguageCode, SUPPORTED_LANGUAGES, getTranslation } from './data/translations';
 
 const HISTORY_STORAGE_KEY = 'globaltip_scans_history';
@@ -143,7 +143,10 @@ export default function App() {
       setActiveTab('scanner');
     }
     try {
-      const loc = await requestBrowserGps();
+      const loc = await requestBrowserGps((lateLoc) => {
+        // A GPS fix that arrives after the IP fallback still wins, unless a scanned receipt set the location since
+        setUserLocation((prev) => (prev.source === 'receipt' ? prev : lateLoc));
+      });
       setUserLocation(loc);
 
       if (manualTrigger) {
@@ -153,9 +156,14 @@ export default function App() {
             type: 'error',
           });
           setIsLocationModalOpen(true);
+        } else if (loc.source !== 'gps') {
+          setToastMessage({
+            text: `${t('locApproximate')}: ${loc.city || loc.countryName} ${loc.flag}`,
+            type: 'info',
+          });
         } else {
           setToastMessage({
-            text: `🔄 Refreshed: ${loc.city || loc.countryName} ${loc.flag}`,
+            text: `${loc.city || loc.countryName} ${loc.flag}`,
             type: 'success',
           });
         }
@@ -492,8 +500,10 @@ export default function App() {
           >
             {toastMessage.type === 'error' ? (
               <AlertCircle className="w-5 h-5 text-[#ff3b30]" />
+            ) : toastMessage.type === 'info' ? (
+              <Wifi className="w-5 h-5 text-[#007aff]" />
             ) : (
-              <CheckCircle2 className="w-5 h-5 text-[#34c759]" />
+              <Navigation className="w-5 h-5 text-[#34c759]" fill="currentColor" />
             )}
             <span>{toastMessage.text}</span>
           </button>

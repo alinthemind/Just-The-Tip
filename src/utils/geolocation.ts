@@ -107,77 +107,79 @@ export async function getIpLocation(): Promise<UserLocation | null> {
   return null;
 }
 
-export function requestBrowserGps(): Promise<UserLocation> {
+/** Browsers (phones especially) only expose GPS on https or localhost */
+export function canUseBrowserGps(): boolean {
+  return typeof navigator !== 'undefined' && !!navigator.geolocation && (typeof window === 'undefined' || window.isSecureContext);
+}
+
+async function ipFallback(error: string): Promise<UserLocation> {
+  const ipLoc = await getIpLocation();
+  if (ipLoc) return { ...ipLoc, error };
+  return { ...getSavedLocation(), isGps: false, error };
+}
+
+/**
+ * Resolve the device location, falling back to IP location. Phones can take several seconds for a
+ * first fix (plus time for the user to answer the permission prompt), so the IP fallback is used
+ * while waiting and `onLateFix` delivers the GPS location if it arrives afterwards.
+ */
+export function requestBrowserGps(onLateFix?: (loc: UserLocation) => void): Promise<UserLocation> {
+  if (!canUseBrowserGps()) {
+    return ipFallback(
+      navigator.geolocation ? 'GPS needs a secure (https) connection' : 'Geolocation is not supported by your browser'
+    );
+  }
+
   return new Promise((resolve) => {
-    // 1. Try browser device GPS first with a responsive timeout (3500ms)
-    if (navigator.geolocation) {
-      let isSettled = false;
+    let isSettled = false;
 
-      const timeoutId = setTimeout(async () => {
-        if (!isSettled) {
-          isSettled = true;
-          console.warn('Browser GPS timed out, falling back to IP network location');
-          const ipLoc = await getIpLocation();
-          if (ipLoc) {
-            resolve(ipLoc);
-          } else {
-            const saved = getSavedLocation();
-            resolve({ ...saved, error: 'GPS request timed out' });
-          }
-        }
-      }, 3500);
+    const startFallbackTimer = (ms: number) =>
+      setTimeout(async () => {
+        if (isSettled) return;
+        isSettled = true;
+        console.warn('Browser GPS is slow, using IP network location until it responds');
+        resolve(await ipFallback('GPS request timed out'));
+      }, ms);
 
-      navigator.geolocation.getCurrentPosition(
-        async (pos) => {
-          if (isSettled) return;
-          isSettled = true;
+    // Give the user time to answer the permission prompt before falling back
+    let timeoutId = startFallbackTimer(12000);
+    navigator.permissions
+      ?.query({ name: 'geolocation' as PermissionName })
+      .then((status) => {
+        if (status.state === 'prompt' && !isSettled) {
           clearTimeout(timeoutId);
-          try {
-            const { latitude, longitude } = pos.coords;
-            const loc = await reverseGeocodeCoords(latitude, longitude);
-            loc.source = 'gps';
-            resolve(loc);
-          } catch (geoErr) {
-            const ipLoc = await getIpLocation();
-            resolve(ipLoc || getSavedLocation());
-          }
-        },
-        async (error) => {
-          if (isSettled) return;
-          isSettled = true;
-          clearTimeout(timeoutId);
-          console.warn('Browser GPS access denied or unavailable, trying IP location:', error.message);
-          // Automatic seamless fallback to IP location
-          const ipLoc = await getIpLocation();
-          if (ipLoc) {
-            resolve(ipLoc);
-          } else {
-            const saved = getSavedLocation();
-            resolve({
-              ...saved,
-              isGps: false,
-              error: error.message || 'Location access denied or unavailable',
-            });
-          }
-        },
-        {
-          enableHighAccuracy: true,
-          timeout: 3500,
-          maximumAge: 30000,
+          timeoutId = startFallbackTimer(30000);
         }
-      );
-      return;
-    }
+      })
+      .catch(() => {});
 
-    // 2. If navigator.geolocation not supported at all, fallback directly to IP location
-    getIpLocation().then((ipLoc) => {
-      if (ipLoc) {
-        resolve(ipLoc);
-      } else {
-        const saved = getSavedLocation();
-        resolve({ ...saved, error: 'Geolocation is not supported by your browser' });
+    navigator.geolocation.getCurrentPosition(
+      async (pos) => {
+        clearTimeout(timeoutId);
+        const { latitude, longitude } = pos.coords;
+        const loc = await reverseGeocodeCoords(latitude, longitude);
+        loc.source = 'gps';
+        if (isSettled) {
+          onLateFix?.(loc);
+          return;
+        }
+        isSettled = true;
+        resolve(loc);
+      },
+      async (error) => {
+        clearTimeout(timeoutId);
+        if (isSettled) return;
+        isSettled = true;
+        console.warn('Browser GPS denied or unavailable, trying IP location:', error.message);
+        resolve(await ipFallback(error.message || 'Location access denied or unavailable'));
+      },
+      {
+        // City-level accuracy is all tipping needs; Wi-Fi/cell positioning answers much faster than satellite GPS
+        enableHighAccuracy: false,
+        timeout: 20000,
+        maximumAge: 60000,
       }
-    });
+    );
   });
 }
 
