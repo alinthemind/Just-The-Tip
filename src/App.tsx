@@ -3,6 +3,7 @@ import { ActiveTab, GpsErrorCode, ScannedReceiptData, UserLocation } from './typ
 import { getSavedLocation, requestBrowserGps, saveLocation, setManualLocation, setLocationFromReceipt } from './utils/geolocation';
 import { getTippingRuleForCountry, getServiceTiers, SERVICE_TYPES, ServiceType, TippingCultureRule } from './data/tippingCulture';
 import { runClientOcr } from './utils/ocr';
+import { primeVoices, speakInLanguage } from './utils/speech';
 import { SAMPLE_RECEIPTS, SampleReceipt } from './data/sampleReceipts';
 import { Header } from './components/Header';
 import { ReceiptScanner } from './components/ReceiptScanner';
@@ -123,6 +124,8 @@ export default function App() {
   });
 
   const handleSelectLang = (lang: LanguageCode) => {
+    // Greet in the chosen language (inside the tap, so phones allow audio)
+    speakInLanguage(lang, `${getTranslation(lang, 'spokenBrand')} ${getTranslation(lang, 'heroTagline')}`);
     setCurrentLang(lang);
     try {
       localStorage.setItem(LANGUAGE_STORAGE_KEY, lang);
@@ -141,6 +144,7 @@ export default function App() {
 
   // Attempt to locate GPS on initial mount and purge any legacy history for strict user privacy
   useEffect(() => {
+    primeVoices();
     handleRefreshGps(false);
     try {
       localStorage.removeItem(HISTORY_STORAGE_KEY);

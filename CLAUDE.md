@@ -41,6 +41,6 @@ Copy `.env.example` to `.env` and set `GEMINI_API_KEY`. The app still runs witho
 
 **State and persistence.** There is no router or state library; `App.tsx` holds all state and switches tabs (`scanner` / calculator / `guide`). `localStorage` keys use the `globaltip_` prefix (theme, language, and location in `utils/geolocation.ts`). Scan history is purged on mount on purpose, for privacy, so don't add history persistence.
 
-**i18n.** All strings live in `src/data/translations.ts` (`TRANSLATIONS[lang][key]`); `src/i18n/translations.ts` only re-exports them. Add new keys to every language, including `tlh` (Klingon). The language whitelist used to restore the saved language in `App.tsx` is a separate hardcoded list, so keep it in sync with `SUPPORTED_LANGUAGES`.
+**i18n.** All strings live in `src/data/translations.ts` (`TRANSLATIONS[lang][key]`); `src/i18n/translations.ts` only re-exports them. Add new keys to every language, including the fictional `tlh` (Klingon) and `vul` (Vulcan). To add a language, add it to the `LanguageCode` type, `SUPPORTED_LANGUAGES` (the saved-language restore in `App.tsx` checks this list) and `TRANSLATIONS`.
 
 **Styling.** Tailwind v4 (via the `@tailwindcss/vite` plugin, no config file). Dark mode is class-based (`@custom-variant dark` in `src/index.css`), and dark is the default. Animations use `motion`; icons use `lucide-react`. The `@/` import alias points at the repo root.
