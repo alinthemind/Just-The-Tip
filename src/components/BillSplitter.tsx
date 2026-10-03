@@ -26,7 +26,8 @@ export const BillSplitter: React.FC<BillSplitterProps> = ({
 
   const rawPerPerson = totalWithTip / diners;
   const finalPerPerson = roundUpPerPerson ? Math.ceil(rawPerPerson) : Math.round(rawPerPerson * 100) / 100;
-  const basePerPerson = Math.round((subtotal / diners) * 100) / 100;
+  // Everything except the tip (food, tax, surcharges, service charge), so Bill + Tip adds up to the per-person total
+  const basePerPerson = Math.round(((totalWithTip - tipAmount) / diners) * 100) / 100;
   const tipPerPerson = Math.round((tipAmount / diners) * 100) / 100;
 
   const handleCopy = () => {
@@ -34,7 +35,7 @@ export const BillSplitter: React.FC<BillSplitterProps> = ({
 Total with Tip: ${currencySymbol}${totalWithTip.toFixed(2)} (${currencyCode})
 Split between: ${diners} people
 👉 Each person pays: ${currencySymbol}${finalPerPerson.toFixed(2)}
-(Base: ${currencySymbol}${basePerPerson.toFixed(2)} + Tip: ${currencySymbol}${tipPerPerson.toFixed(2)})`;
+(Bill: ${currencySymbol}${basePerPerson.toFixed(2)} + Tip: ${currencySymbol}${tipPerPerson.toFixed(2)})`;
 
     navigator.clipboard.writeText(text);
     setCopied(true);
@@ -91,7 +92,7 @@ Split between: ${diners} people
             {currencySymbol}{finalPerPerson.toFixed(2)}
           </div>
           <div className="text-xs text-zinc-500 dark:text-zinc-400 mt-1 flex items-center gap-2">
-            <span>Food: {currencySymbol}{basePerPerson.toFixed(2)}</span>
+            <span>Bill: {currencySymbol}{basePerPerson.toFixed(2)}</span>
             <span>•</span>
             <span className="text-zinc-700 dark:text-zinc-300 font-medium">Tip: {currencySymbol}{tipPerPerson.toFixed(2)}</span>
           </div>

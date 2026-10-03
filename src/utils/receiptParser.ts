@@ -19,11 +19,11 @@ export interface ParsedReceiptTextResult {
 }
 
 const CITY_PATTERNS: Array<{ regex: RegExp; city: string; state: string; countryCode: string }> = [
-  { regex: /\b(hong\s*kong|kowloon|central|tsim\s*sha\s*tsui|tst|causeway\s*bay|wan\s*chai|mong\s*kok|admiralty|sheung\s*wan|lan\s*kwai\s*fong|hkd|加一|服務費)\b/i, city: 'Hong Kong', state: '', countryCode: 'HK' },
+  { regex: /\b(hong\s*kong|kowloon|central|tsim\s*sha\s*tsui|tst|causeway\s*bay|wan\s*chai|mong\s*kok|admiralty|sheung\s*wan|lan\s*kwai\s*fong|hkd)\b|加一|服務費/i, city: 'Hong Kong', state: '', countryCode: 'HK' },
   { regex: /\b(chicago)\b/i, city: 'Chicago', state: 'IL', countryCode: 'US' },
   { regex: /\b(san\s*francisco|sf)\b/i, city: 'San Francisco', state: 'CA', countryCode: 'US' },
   { regex: /\b(new\s*york|nyc|manhattan|brooklyn)\b/i, city: 'New York', state: 'NY', countryCode: 'US' },
-  { regex: /\b(los\s*angeles|la)\b/i, city: 'Los Angeles', state: 'CA', countryCode: 'US' },
+  { regex: /\b(los\s*angeles)\b|\bl\.a\./i, city: 'Los Angeles', state: 'CA', countryCode: 'US' },
   { regex: /\b(austin)\b/i, city: 'Austin', state: 'TX', countryCode: 'US' },
   { regex: /\b(seattle)\b/i, city: 'Seattle', state: 'WA', countryCode: 'US' },
   { regex: /\b(boston)\b/i, city: 'Boston', state: 'MA', countryCode: 'US' },
@@ -43,7 +43,7 @@ export function parseReceiptText(text: string): ParsedReceiptTextResult {
   let merchantName = lines[0] || 'Restaurant Bill';
   let detectedCity = '';
   let detectedState = '';
-  let detectedCountry = 'US';
+  let detectedCountry = '';
 
   // 1. Detect City / Location from receipt text
   for (const pattern of CITY_PATTERNS) {
@@ -60,11 +60,13 @@ export function parseReceiptText(text: string): ParsedReceiptTextResult {
   if (ilZipMatch && !detectedCity) {
     detectedCity = 'Chicago';
     detectedState = 'IL';
+    detectedCountry = 'US';
   }
   const caZipMatch = text.match(/\b(CA|California)\s*(941\d{2})\b/i);
   if (caZipMatch && !detectedCity) {
     detectedCity = 'San Francisco';
     detectedState = 'CA';
+    detectedCountry = 'US';
   }
 
   // 2. Detect numbers and lines
@@ -80,14 +82,14 @@ export function parseReceiptText(text: string): ParsedReceiptTextResult {
 
   // Helper to extract money float from a string line
   const extractMoney = (line: string): number | null => {
-    // Look for numbers like 14.50 or $14.50
-    const matches = line.match(/[$€£¥]?\s*([0-9]+\.[0-9]{2})\b/);
+    // Look for numbers like 14.50, $14.50, 1,234.50 or ¥12,400
+    const matches = line.match(/[$€£¥]?\s*((?:[0-9]{1,3}(?:,[0-9]{3})+|[0-9]+)\.[0-9]{2})\b/);
     if (matches) {
-      return parseFloat(matches[1]);
+      return parseFloat(matches[1].replace(/,/g, ''));
     }
-    const intMatch = line.match(/[$€£¥]\s*([0-9]+)\b/);
+    const intMatch = line.match(/[$€£¥]\s*([0-9]{1,3}(?:,[0-9]{3})+|[0-9]+)\b/);
     if (intMatch) {
-      return parseFloat(intMatch[1]);
+      return parseFloat(intMatch[1].replace(/,/g, ''));
     }
     return null;
   };
@@ -123,7 +125,7 @@ export function parseReceiptText(text: string): ParsedReceiptTextResult {
     }
 
     // Auto Gratuity / Service charge
-    if (/\b(auto\s*gratuity|service\s*charge|discretionary\s*service|coperto|加一|服務費|10%\s*svc|10%\s*sc|\+10%)\b/i.test(line)) {
+    if (/\b(auto\s*gratuity|service\s*charge|discretionary\s*service|coperto|10%\s*svc|10%\s*sc)\b|加一|服務費|\+10%/i.test(line)) {
       const amount = money || 0;
       serviceCharge += amount;
       serviceChargeIncluded = true;
@@ -158,7 +160,7 @@ export function parseReceiptText(text: string): ParsedReceiptTextResult {
     // Items line parsing
     if (money !== null && items.length < 15) {
       // Clean item name
-      const cleanName = line.replace(/[$€£¥]?\s*[0-9]+\.[0-9]{2}.*$/, '').trim();
+      const cleanName = line.replace(/[$€£¥]?\s*[0-9][0-9,]*\.[0-9]{2}.*$/, '').trim();
       if (cleanName.length > 2 && !/subtotal|tax|total|tip|visa|mastercard|cash|change/i.test(cleanName)) {
         items.push({
           name: cleanName,

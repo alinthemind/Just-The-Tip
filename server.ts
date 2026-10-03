@@ -37,6 +37,8 @@ function buildFallbackReceiptData(
   let merchant = 'Restaurant Bill';
   let detectedCity = cityName || '';
   let detectedState = '';
+  // Whether the city came from the receipt itself (OCR, sample, or text match) rather than device GPS
+  let cityFromReceipt = false;
   let preTaxSubtotal = 48.0;
   let tax = 4.25;
   let surcharges: Array<{ name: string; amount: number; isHealthOrMandate?: boolean }> = [];
@@ -55,6 +57,7 @@ function buildFallbackReceiptData(
     if (clientOcr.city) {
       detectedCity = clientOcr.city;
       detectedState = clientOcr.state || '';
+      cityFromReceipt = true;
     }
     if (clientOcr.preTaxSubtotal > 0) preTaxSubtotal = clientOcr.preTaxSubtotal;
     if (clientOcr.tax > 0) tax = clientOcr.tax;
@@ -71,19 +74,23 @@ function buildFallbackReceiptData(
     }
   }
 
-  // 2. Try matching any sample receipts if clicked
-  let decodedStr = imageStr;
-  try {
-    decodedStr = decodeURIComponent(imageStr.replace(/%(?![0-9a-fA-F]{2})/g, '%25'));
-  } catch {
-    decodedStr = imageStr;
+  // 2. Try matching any sample receipts if clicked.
+  // Only SVG demo receipts contain readable text; a raster photo's base64 is random
+  // characters that would spuriously match short patterns like "sf" or "hkd".
+  const isSvg = imageStr.startsWith('data:image/svg+xml') || imageStr.includes('<svg');
+  let decodedStr = '';
+  if (isSvg) {
+    try {
+      decodedStr = decodeURIComponent(imageStr.replace(/%(?![0-9a-fA-F]{2})/g, '%25'));
+    } catch {
+      decodedStr = imageStr;
+    }
   }
 
   for (const sample of SAMPLE_RECEIPTS) {
+    if (!decodedStr) break;
     if (
-      imageStr.includes(sample.id) ||
       decodedStr.includes(sample.id) ||
-      imageStr.includes(encodeURIComponent(sample.name)) ||
       decodedStr.includes(sample.name) ||
       (sample.countryCode === 'HK' && (decodedStr.includes('Maxim') || decodedStr.includes('美心') || decodedStr.includes('Hong Kong') || decodedStr.includes('HK$'))) ||
       (sample.countryCode === 'TW' && (decodedStr.includes('鼎泰豐') || decodedStr.includes('Din Tai Fung') || decodedStr.includes('Taipei') || decodedStr.includes('NT$'))) ||
@@ -106,12 +113,14 @@ function buildFallbackReceiptData(
       countryName = sample.countryName;
       detectedCity = sample.city;
       detectedState = sample.state || '';
+      cityFromReceipt = true;
       break;
     }
   }
 
   // 3. Fallback regex detection on text for cities, currencies, and surcharges
-  if (!detectedCity || !countryCode) {
+  if (decodedStr && (!detectedCity || !countryCode)) {
+    const cityBefore = detectedCity;
     if (/hong\s*kong|美心|kowloon|central|hk\$|hkd/i.test(decodedStr)) {
       detectedCity = 'Hong Kong';
       countryCode = 'HK';
@@ -120,11 +129,11 @@ function buildFallbackReceiptData(
       detectedCity = 'Taipei';
       countryCode = 'TW';
       countryName = 'Taiwan';
-    } else if (/bangkok|thailand|somtum|฿|thb/i.test(decodedStr)) {
+    } else if (/bangkok|thailand|calypso|somtum|฿|thb/i.test(decodedStr)) {
       detectedCity = 'Bangkok';
       countryCode = 'TH';
       countryName = 'Thailand';
-    } else if (/shanghai|china|姥姥家/i.test(decodedStr)) {
+    } else if (/shanghai|china|老吉士|old\s*jesse|姥姥家/i.test(decodedStr)) {
       detectedCity = 'Shanghai';
       countryCode = 'CN';
       countryName = 'China';
@@ -138,7 +147,7 @@ function buildFallbackReceiptData(
       detectedState = 'IL';
       countryCode = 'US';
       countryName = 'United States';
-    } else if (/san\s*francisco|sf/i.test(decodedStr)) {
+    } else if (/san\s*francisco|\bsf\b|bix/i.test(decodedStr)) {
       detectedCity = 'San Francisco';
       detectedState = 'CA';
       countryCode = 'US';
@@ -151,24 +160,12 @@ function buildFallbackReceiptData(
       detectedCity = 'Paris';
       countryCode = 'FR';
       countryName = 'France';
-    } else if (/bangkok|thailand|calypso|somtum|฿|thb/i.test(decodedStr)) {
-      detectedCity = 'Bangkok';
-      countryCode = 'TH';
-      countryName = 'Thailand';
-    } else if (/shanghai|china|老吉士|old\s*jesse|姥姥家/i.test(decodedStr)) {
-      detectedCity = 'Shanghai';
-      countryCode = 'CN';
-      countryName = 'China';
-    } else if (/san\s*francisco|sf|bix/i.test(decodedStr)) {
-      detectedCity = 'San Francisco';
-      detectedState = 'CA';
-      countryCode = 'US';
-      countryName = 'United States';
     } else if (/mexico\s*city|mexico|cdmx|califa|pujol|taqueria|condesa|polanco/i.test(decodedStr)) {
       detectedCity = 'Mexico City';
       countryCode = 'MX';
       countryName = 'Mexico';
     }
+    if (detectedCity !== cityBefore) cityFromReceipt = true;
   }
 
   // Parse financial amounts if present in SVG or plain text
@@ -236,7 +233,7 @@ function buildFallbackReceiptData(
     address: cityDisplay,
     city: detectedCity,
     state: detectedState,
-    locationSource: detectedCity ? 'receipt' : 'gps',
+    locationSource: cityFromReceipt ? 'receipt' : 'gps',
     currencyCode: rule.currencyCode,
     currencySymbol: rule.currencySymbol,
     preTaxSubtotal,
@@ -330,8 +327,6 @@ app.post('/api/reverse-geocode', async (req: Request, res: Response) => {
           signal: controller.signal,
         }
       );
-      clearTimeout(timeout);
-
       if (response.ok) {
         const data = await response.json();
         const address = data.address || {};
@@ -368,18 +363,19 @@ app.post('/api/reverse-geocode', async (req: Request, res: Response) => {
     } catch (nomErr) {
       // Nominatim failed or timed out, fall back to Gemini
       console.warn('Nominatim reverse geocode failed, using AI fallback:', nomErr);
+    } finally {
+      clearTimeout(timeout);
     }
 
     // AI Fallback for reverse geocoding coordinates
-    const geoResponse = await ai.models.generateContent({
-      model: 'gemini-3.8-flash',
-      contents: `Identify the country code (ISO 2-letter, e.g. US, FR, JP, GB), country name, and nearest city for coordinates: Latitude ${latitude}, Longitude ${longitude}. Return JSON strictly matching: {"countryCode": "US", "countryName": "United States", "city": "New York"}`,
-      config: {
-        responseMimeType: 'application/json',
-      },
-    });
-
     try {
+      const geoResponse = await ai.models.generateContent({
+        model: 'gemini-3.8-flash',
+        contents: `Identify the country code (ISO 2-letter, e.g. US, FR, JP, GB), country name, and nearest city for coordinates: Latitude ${latitude}, Longitude ${longitude}. Return JSON strictly matching: {"countryCode": "US", "countryName": "United States", "city": "New York"}`,
+        config: {
+          responseMimeType: 'application/json',
+        },
+      });
       const parsed = JSON.parse(geoResponse.text || '{}');
       const countryCode = (parsed.countryCode || 'US').toUpperCase();
       const rule = getTippingRuleForCountry(countryCode);
@@ -391,7 +387,8 @@ app.post('/api/reverse-geocode', async (req: Request, res: Response) => {
         currencyCode: rule.currencyCode,
         currencySymbol: rule.currencySymbol,
       });
-    } catch {
+    } catch (aiErr: any) {
+      console.warn('AI reverse geocode failed, defaulting to US:', aiErr?.message || aiErr);
       return res.json({
         countryCode: 'US',
         countryName: 'United States',
@@ -420,12 +417,18 @@ app.get('/api/ip-location', async (req: Request, res: Response) => {
       clientIp = req.socket.remoteAddress || '';
     }
 
+    // Node reports IPv4 peers as IPv4-mapped IPv6 (e.g. "::ffff:127.0.0.1")
+    clientIp = clientIp.replace(/^::ffff:/, '');
+
     const isLocalhost =
       !clientIp ||
       clientIp === '::1' ||
-      clientIp === '127.0.0.1' ||
+      clientIp.startsWith('127.') ||
       clientIp.startsWith('192.168.') ||
-      clientIp.startsWith('10.');
+      clientIp.startsWith('10.') ||
+      /^172\.(1[6-9]|2\d|3[01])\./.test(clientIp) ||
+      /^f[cd]/i.test(clientIp) ||
+      /^fe80:/i.test(clientIp);
 
     const targetUrl = isLocalhost ? 'https://ipwho.is/' : `https://ipwho.is/${clientIp}`;
     const controller = new AbortController();
@@ -730,7 +733,12 @@ Return strictly valid JSON.`;
     const tipBasisAmount = preTaxSubtotal > 0 ? preTaxSubtotal : total;
     parsedData.tipBasisAmount = tipBasisAmount;
 
-    // Attach calculated amounts to minimum, average, high based strictly on tipBasisAmount
+    // Attach calculated amounts to every tier based strictly on tipBasisAmount
+    if (parsedData.tippingCulture?.poor) {
+      const poorPct = parsedData.tippingCulture.poor.percent;
+      parsedData.tippingCulture.poor.amount = Math.round(tipBasisAmount * (poorPct / 100) * 100) / 100;
+      parsedData.tippingCulture.poor.totalWithTip = Math.round((total + parsedData.tippingCulture.poor.amount) * 100) / 100;
+    }
     if (parsedData.tippingCulture?.minimum) {
       const minPct = parsedData.tippingCulture.minimum.percent;
       parsedData.tippingCulture.minimum.amount = Math.round(tipBasisAmount * (minPct / 100) * 100) / 100;

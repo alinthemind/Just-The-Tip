@@ -9,7 +9,8 @@ interface LiveCameraModalProps {
 
 export const LiveCameraModal: React.FC<LiveCameraModalProps> = ({ isOpen, onClose, onCapture }) => {
   const videoRef = useRef<HTMLVideoElement | null>(null);
-  const [stream, setStream] = useState<MediaStream | null>(null);
+  // A ref, not state: effect cleanups capture stale state and would never stop the stream
+  const streamRef = useRef<MediaStream | null>(null);
   const [cameraError, setCameraError] = useState<string | null>(null);
   const [facingMode, setFacingMode] = useState<'environment' | 'user'>('environment');
   const [isStarting, setIsStarting] = useState(false);
@@ -26,9 +27,9 @@ export const LiveCameraModal: React.FC<LiveCameraModalProps> = ({ isOpen, onClos
   }, [isOpen, facingMode]);
 
   const stopCamera = () => {
-    if (stream) {
-      stream.getTracks().forEach((track) => track.stop());
-      setStream(null);
+    if (streamRef.current) {
+      streamRef.current.getTracks().forEach((track) => track.stop());
+      streamRef.current = null;
     }
   };
 
@@ -47,7 +48,7 @@ export const LiveCameraModal: React.FC<LiveCameraModalProps> = ({ isOpen, onClos
         audio: false,
       });
 
-      setStream(mediaStream);
+      streamRef.current = mediaStream;
       if (videoRef.current) {
         videoRef.current.srcObject = mediaStream;
         videoRef.current.play();

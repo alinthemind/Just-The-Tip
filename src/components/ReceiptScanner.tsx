@@ -62,6 +62,8 @@ export const ReceiptScanner: React.FC<ReceiptScannerProps> = ({
     if (e.target.files && e.target.files[0]) {
       processFile(e.target.files[0]);
     }
+    // Reset so picking the same photo again still fires onChange
+    e.target.value = '';
   };
 
   const handleDrop = (e: React.DragEvent) => {

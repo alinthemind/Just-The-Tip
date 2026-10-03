@@ -228,22 +228,26 @@ export default function App() {
         data.detectedCountry?.code ||
         clientOcrResult?.countryCode ||
         'US';
-      let resolvedCity =
+      // The fallback path echoes the GPS city back with locationSource 'gps'; that isn't a receipt location
+      const receiptCity =
         sampleInfo?.city ||
-        data.city ||
+        (data.locationSource !== 'gps' ? data.city : '') ||
         clientOcrResult?.city ||
-        (resolvedCountryCode === 'HK' ? 'Hong Kong' : '');
+        '';
+      let resolvedCity = receiptCity || (resolvedCountryCode === 'HK' ? 'Hong Kong' : '');
       let resolvedState = data.state || clientOcrResult?.state;
       let locationSource: 'receipt' | 'photo-gps' | 'gps' = 'receipt';
 
-      if (sampleInfo || resolvedCity || clientOcrResult?.city) {
+      if (resolvedCity) {
         locationSource = 'receipt';
       } else if (photoLocationCandidate) {
         resolvedCity = photoLocationCandidate.city;
+        resolvedState = photoLocationCandidate.state || '';
         resolvedCountryCode = photoLocationCandidate.countryCode;
         locationSource = 'photo-gps';
       } else if (userLocation.city) {
         resolvedCity = userLocation.city;
+        resolvedState = '';
         resolvedCountryCode = userLocation.countryCode;
         locationSource = 'gps';
       }
@@ -365,7 +369,7 @@ export default function App() {
         tax: Number(data.tax) || 0,
         surcharges,
         totalSurcharges,
-        serviceCharge: Number(data.serviceCharge) || (resolvedCountryCode === 'HK' ? 21.4 : 0),
+        serviceCharge: Number(data.serviceCharge) || 0,
         serviceChargeIncluded: Boolean(data.serviceChargeIncluded) || resolvedCountryCode === 'HK' || resolvedCountryCode === 'TW',
         serviceChargeDescription: data.serviceChargeDescription,
         total,

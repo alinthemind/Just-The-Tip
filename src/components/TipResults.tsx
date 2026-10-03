@@ -53,11 +53,16 @@ export const TipResults: React.FC<TipResultsProps> = ({
   const [editServiceCharge, setEditServiceCharge] = useState(receipt.serviceCharge.toString());
   const [editTotal, setEditTotal] = useState(receipt.total.toString());
 
-  const subtotalVal = parseFloat(editSubtotal) || receipt.preTaxSubtotal || receipt.subtotal;
-  const taxVal = parseFloat(editTax) || receipt.tax;
-  const surchargesVal = parseFloat(editSurcharges) || receipt.totalSurcharges || 0;
-  const serviceChargeVal = parseFloat(editServiceCharge) || receipt.serviceCharge;
-  const totalVal = parseFloat(editTotal) || receipt.total;
+  // Fall back to the scanned value only when the field is blank/invalid, so 0 is a valid edit
+  const parseEdit = (value: string, fallback: number) => {
+    const n = parseFloat(value);
+    return Number.isFinite(n) && n >= 0 ? n : fallback;
+  };
+  const subtotalVal = parseEdit(editSubtotal, receipt.preTaxSubtotal || receipt.subtotal);
+  const taxVal = parseEdit(editTax, receipt.tax);
+  const surchargesVal = parseEdit(editSurcharges, receipt.totalSurcharges || 0);
+  const serviceChargeVal = parseEdit(editServiceCharge, receipt.serviceCharge);
+  const totalVal = parseEdit(editTotal, receipt.total);
 
   // CRITICAL: Tip is calculated STRICTLY on the pre-tax food & beverage subtotal (excluding tax, excluding SF Health Mandates and surcharges)
   const tipBasisAmount = subtotalVal;
@@ -252,7 +257,7 @@ export const TipResults: React.FC<TipResultsProps> = ({
 
             <div className="flex flex-wrap items-center gap-2 text-xs text-zinc-600 dark:text-zinc-400 mt-1">
               <span className="font-extrabold text-[#E1306C] bg-pink-50 dark:bg-pink-950/50 px-2.5 py-0.5 rounded-md border border-pink-200/70 dark:border-pink-900/50 font-mono">
-                {t('billSubtotal') || 'Pre-Tax Tip Basis'}: {receipt.currencySymbol}{tipBasisAmount.toFixed(2)}
+                {t('preTaxBasis')}: {receipt.currencySymbol}{tipBasisAmount.toFixed(2)}
               </span>
               <span className="text-zinc-400 dark:text-zinc-500 hidden xs:inline">•</span>
               <span className="text-[11px] text-zinc-500 dark:text-zinc-400">
