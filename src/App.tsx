@@ -344,19 +344,27 @@ export default function App() {
       setScanStep(t('stepCalculating'));
       let data: any;
       try {
-        const response = await fetch('/api/scan-receipt', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            image: base64Image,
-            latitude: candidateLat,
-            longitude: candidateLon,
-            countryCode: candidateCountry,
-            cityName: candidateCity,
-            countryName: userLocation.countryName,
-            clientOcr: clientOcrResult,
-          }),
+        const body = JSON.stringify({
+          image: base64Image,
+          latitude: candidateLat,
+          longitude: candidateLon,
+          countryCode: candidateCountry,
+          cityName: candidateCity,
+          countryName: userLocation.countryName,
+          clientOcr: clientOcrResult,
         });
+        const post = () =>
+          fetch('/api/scan-receipt', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body });
+        let response: Response;
+        try {
+          response = await post();
+        } catch (networkErr) {
+          // Phones drop the connection for a moment (Wi-Fi handoff, screen locked during a long scan):
+          // try once more before reporting the server as unreachable
+          console.warn('Scan request failed, retrying once:', networkErr);
+          await new Promise((r) => setTimeout(r, 1500));
+          response = await post();
+        }
         if (!response.ok) {
           const errorData = await response.json().catch(() => ({}));
           if (errorData.error) console.warn('Scan request failed:', errorData.error);

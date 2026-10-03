@@ -171,9 +171,9 @@ export const ReceiptScanner: React.FC<ReceiptScannerProps> = ({
                 <button
                   type="button"
                   onClick={() => fileInputRef.current?.click()}
-                  className="flex flex-col items-center justify-center gap-1.5 py-4 rounded-[16px] bg-[#767680]/12 dark:bg-[#767680]/24 text-zinc-900 dark:text-white active:scale-[0.97] transition-transform cursor-pointer"
+                  className="flex flex-col items-center justify-center gap-1.5 py-4 rounded-[16px] ig-gradient text-white active:scale-[0.97] transition-transform cursor-pointer shadow-[0_8px_20px_-8px_rgba(225,48,108,0.7)]"
                 >
-                  <ImageUp className="w-7 h-7 text-accent" strokeWidth={1.8} />
+                  <ImageUp className="w-7 h-7" strokeWidth={1.8} />
                   <span className="text-[15px] font-semibold">{t('uploadPhoto')}</span>
                 </button>
               </div>
