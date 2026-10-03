@@ -4,8 +4,10 @@ import { getSavedLocation, requestBrowserGps, saveLocation, setManualLocation, s
 import { getTippingRuleForCountry, getServiceTiers, serviceAdvice, SERVICE_TYPES, ServiceType } from './data/tippingCulture';
 import { prefetchOcrModels, runClientOcr } from './utils/ocr';
 import { shrinkForUpload } from './utils/uploadImage';
+import { cloudAiAvailable } from './utils/serverConfig';
+import { receiptOffers } from './utils/venueText';
+import { buildFallbackReceiptData, finalizeScanResult } from './utils/receiptResult';
 import { primeVoices, speakInLanguage } from './utils/speech';
-import { SAMPLE_RECEIPTS, SampleReceipt } from './data/sampleReceipts';
 import { Header } from './components/Header';
 import { ReceiptScanner } from './components/ReceiptScanner';
 import { TipResults } from './components/TipResults';
@@ -30,45 +32,6 @@ const GPS_ERROR_KEYS: Record<GpsErrorCode, string> = {
   unsupported: 'locNoSignal',
 };
 
-
-/** Same shape as /api/scan-receipt's response, built from a demo receipt's own data */
-function sampleToScanData(sample: SampleReceipt) {
-  const rule = getTippingRuleForCountry(sample.countryCode);
-  const surcharges = sample.surcharges || [];
-  const tier = (percent: number | undefined, label: string) => ({ percent: percent ?? 0, label, description: '' });
-  return {
-    merchantName: sample.name,
-    date: sample.date,
-    address: sample.state ? `${sample.city}, ${sample.state}` : sample.city,
-    city: sample.city,
-    state: sample.state || '',
-    locationSource: 'receipt',
-    preTaxSubtotal: sample.subtotal,
-    subtotal: sample.subtotal,
-    tax: sample.tax,
-    surcharges,
-    totalSurcharges: surcharges.reduce((acc, s) => acc + s.amount, 0),
-    serviceCharge: sample.serviceCharge,
-    serviceChargeIncluded: sample.serviceCharge > 0,
-    serviceChargeDescription: sample.notes,
-    total: sample.total,
-    tipBasisAmount: sample.subtotal,
-    items: sample.items,
-    detectedCountry: { code: rule.countryCode, name: rule.countryName, flag: rule.flag },
-    tippingCulture: {
-      isTippingCustomary: rule.isTippingCustomary,
-      isTippingDiscouraged: rule.isTippingDiscouraged,
-      tippingBasis: 'subtotal',
-      poor: tier(rule.poorPercent, rule.poorLabel || ''),
-      minimum: tier(rule.minPercent, rule.minLabel),
-      average: tier(rule.avgPercent, rule.avgLabel),
-      high: tier(rule.highPercent, rule.highLabel),
-      localEtiquetteNotes: [rule.restaurantAdvice, rule.counterCafeAdvice, rule.barAdvice, ...(rule.specialRules || [])],
-      paymentAdvice: rule.taxiAdvice || undefined,
-    },
-    isFallback: true,
-  };
-}
 
 export default function App() {
   const [activeTab, setActiveTab] = useState<ActiveTab>('scanner');
@@ -343,53 +306,47 @@ export default function App() {
       const candidateLon = photoGps?.longitude ?? userLocation.longitude;
 
       setScanStep(t('stepCalculating'));
-      let data: any;
-      try {
-        const body = JSON.stringify({
-          image: await shrinkForUpload(base64Image),
-          latitude: candidateLat,
-          longitude: candidateLon,
-          countryCode: candidateCountry,
-          cityName: candidateCity,
-          countryName: userLocation.countryName,
-          clientOcr: clientOcrResult,
-        });
-        const post = () =>
-          fetch('/api/scan-receipt', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body });
-        let response: Response;
+      // Work the result out on the phone: its own reading of the receipt plus the built-in tipping rules
+      // (demo receipts carry their own numbers). This needs no network at all.
+      let data: any = finalizeScanResult(
+        buildFallbackReceiptData(candidateCountry, candidateCity, userLocation.countryName, base64Image, clientOcrResult),
+        clientOcrResult
+      );
+
+      // Only when the phone's reading doesn't check out (amounts repaired or nothing to cross-check), and
+      // only if the server has Gemini, send the photo for a second opinion. Any failure keeps the phone's result.
+      const unsure = !sampleInfo && !clientOcrResult?.amountsConfirmed;
+      if (unsure && (await cloudAiAvailable())) {
         try {
-          response = await post();
-        } catch (networkErr) {
-          // Phones drop the connection for a moment (Wi-Fi handoff, screen locked during a long scan):
-          // try once more before reporting the server as unreachable
-          console.warn('Scan request failed, retrying once:', networkErr);
-          await new Promise((r) => setTimeout(r, 1500));
-          response = await post();
+          const body = JSON.stringify({
+            image: await shrinkForUpload(base64Image),
+            latitude: candidateLat,
+            longitude: candidateLon,
+            countryCode: candidateCountry,
+            cityName: candidateCity,
+            countryName: userLocation.countryName,
+            clientOcr: clientOcrResult,
+          });
+          const post = () =>
+            fetch('/api/scan-receipt', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body });
+          let response: Response;
+          try {
+            response = await post();
+          } catch (networkErr) {
+            // Phones drop the connection for a moment (Wi-Fi handoff, screen locked during a long scan)
+            console.warn('Scan request failed, retrying once:', networkErr);
+            await new Promise((r) => setTimeout(r, 1500));
+            response = await post();
+          }
+          if (response.ok) {
+            data = await response.json();
+          } else {
+            const errorData = await response.json().catch(() => ({}));
+            console.warn(`AI scan unavailable (${response.status}), using the on-device result:`, errorData.error || '');
+          }
+        } catch (requestErr) {
+          console.warn('AI scan unreachable, using the on-device result:', requestErr);
         }
-        if (!response.ok) {
-          const errorData = await response.json().catch(() => ({}));
-          if (errorData.error) console.warn('Scan request failed:', errorData.error);
-          // Shown in the user's language; the server's English detail goes to the console
-          throw new Error(
-            response.status === 404
-              ? t('errUnreachable')
-              : response.status === 413
-              ? t('errPhotoTooLarge')
-              : t('errScanFailed').replace('{code}', String(response.status))
-          );
-        }
-        data = await response.json();
-      } catch (requestErr) {
-        // Demo receipts carry their own numbers, so they still work when the server can't be reached
-        const sample = SAMPLE_RECEIPTS.find((s) => s.svgDataUri === base64Image);
-        if (!sample) {
-          // fetch() rejects with a TypeError when the server can't be reached at all
-          throw requestErr instanceof TypeError
-            ? new Error(t('errUnreachable'))
-            : requestErr;
-        }
-        console.warn('Scan request failed, using built-in sample data:', requestErr);
-        data = sampleToScanData(sample);
       }
 
       // DETERMINE FINAL LOCATION SOURCE:
@@ -594,6 +551,9 @@ export default function App() {
         aiNotice: data.aiNotice,
         isFallback: data.isFallback,
         needsReview: Boolean(data.needsReview) || (preTaxSubtotal <= 0 && total <= 0),
+        latitude: candidateLat,
+        longitude: candidateLon,
+        receiptOffers: receiptOffers(clientOcrResult?.rawText || ''),
         scannedAt: Date.now(),
       };
 

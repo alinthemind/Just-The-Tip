@@ -18,7 +18,7 @@ Dependencies are locked with Bun (`bun.lock`).
 - `npm run lint`: type-check only (`tsc --noEmit`); there is no ESLint
 - There is no test suite.
 
-Copy `.env.example` to `.env` and set `GEMINI_API_KEY` (on Vercel, set it under the project's Environment Variables). The app still runs without a key: Gemini is skipped and the fallbacks below are used.
+Copy `.env.example` to `.env`. Both keys are optional (on Vercel, set them under the project's Environment Variables): `GEMINI_API_KEY` gives a second opinion on receipts the phone can't confirm, and `GOOGLE_MAPS_API_KEY` (Places API, New) adds the venue's Google rating, review summary and reviews. `GET /api/config` tells the client which are set.
 
 ## Architecture
 
@@ -34,8 +34,10 @@ Copy `.env.example` to `.env` and set `GEMINI_API_KEY` (on Vercel, set it under 
 **Client scan pipeline (`src/App.tsx` → `handleScanReceipt`):**
 1. Read EXIF GPS from the photo if present (`utils/exif.ts`) and reverse-geocode it.
 2. Run in-browser OCR with Tesseract (`utils/ocr.ts`; SVG samples are parsed as text directly). English runs first; if it isn't a confident receipt read, script models (`chi_sim`, `chi_tra`, `jpn`, `kor`, `tha`) are tried in hint order (app language, then phone country) within a 45s budget, each attempt judged by `receiptTextScore` (labelled amounts found), since Tesseract confidence can't tell scripts apart. Don't add image preprocessing: grayscale/contrast/upscaling measurably hurt real photos. Then `utils/receiptParser.ts` parses merchant, location (city, currency, writing system), amounts and service type (restaurant/bar/cafe/taxi/beauty/hotel) in many languages, and cross-checks the numbers: the most frequent total wins, subtotal + tax + service + fees must add up to it, and a printed tax rate settles which amount was misread.
-3. POST everything to `/api/scan-receipt` as `clientOcr` context.
+3. Build the result **on the phone** (`utils/receiptResult.ts`, the same code the server uses as its fallback). Only if the parser couldn't confirm the amounts (`amountsConfirmed`: total printed twice, labelled parts add up, tax rate fits, or items sum up) *and* the server has Gemini is the photo shrunk and POSTed to `/api/scan-receipt`; any failure keeps the phone's result. Prefer doing work on the device over adding cloud calls.
 4. Decide the final location in this priority order: sample receipt info > location printed on the receipt (Gemini, then client OCR) > photo EXIF GPS > the phone's live GPS.
+
+**Venue, reviews and deals.** After a scan, `components/VenueSection.tsx` looks the venue up via `POST /api/venue` (only with a Maps key and a real merchant name; the server just passes Google's data through). The phone then picks tipping comments, happy hours, pricing specials and deals out of the reviews and out of the receipt's own text (`utils/venueText.ts`). Google provides no deals data, so those two sources are all there is. The "Rate & Review on Google" button uses Google's write-a-review link, or a Maps search when the exact place isn't known.
 
 **Tipping data.** `src/data/tippingCulture.ts` (`COUNTRY_TIPPING_DATABASE`, `getTippingRuleForCountry`) is the source of truth for each country's percentages, currency, and advice. Gemini's tiers override it when the AI call succeeds.
 

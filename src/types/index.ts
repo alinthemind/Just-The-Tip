@@ -67,6 +67,11 @@ export interface ScannedReceiptData {
   isFallback?: boolean;
   /** Nothing could be read off the receipt; the user has to enter the amounts */
   needsReview?: boolean;
+  /** Where the receipt was scanned (photo GPS or the phone), to find the venue on Google */
+  latitude?: number | null;
+  longitude?: number | null;
+  /** Happy hours, pricing specials and deals printed on the receipt */
+  receiptOffers?: { happyHours: string[]; specials: string[]; deals: string[] };
   scannedAt: number;
 }
 

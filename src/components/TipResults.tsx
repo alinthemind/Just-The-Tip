@@ -33,6 +33,7 @@ import { TipPanel, TierKey } from './TipPanel';
 import { formatMoney, RoundMode } from '../utils/tipMath';
 import { localizedCountryName } from '../utils/countryName';
 import { useEtiquette } from '../data/etiquette';
+import { RateOnGoogle, useVenue, VenueDeals, VenueReviews } from './VenueSection';
 
 interface TipResultsProps {
   receipt: ScannedReceiptData;
@@ -66,6 +67,8 @@ export const TipResults: React.FC<TipResultsProps> = ({
   const t = (key: string) => getTranslation(currentLang, key);
   // Etiquette notes built from the country data translate; free-form AI notes stay as written
   const tr = useEtiquette(currentLang);
+  // Google rating and reviews for the venue (null when no Maps key is set or the venue isn't found)
+  const venue = useVenue(receipt, currentLang);
   const { tippingCulture } = receipt;
   const detectedService: ServiceType = receipt.serviceType || 'restaurant';
   const [serviceType, setServiceType] = useState<ServiceType>(detectedService);
@@ -266,6 +269,10 @@ export const TipResults: React.FC<TipResultsProps> = ({
         }
       />
 
+      {/* The venue on Google, then deals: happy hours and specials from the receipt and from reviews */}
+      <VenueReviews venue={venue} t={t} />
+      <VenueDeals receipt={receipt} venue={venue} t={t} />
+
       {/* Local customs (collapsed) */}
       <Card className="overflow-hidden">
         <button
@@ -409,6 +416,8 @@ export const TipResults: React.FC<TipResultsProps> = ({
           )}
         </Card>
       </div>
+
+      <RateOnGoogle receipt={receipt} venue={venue} t={t} />
     </div>
   );
 };

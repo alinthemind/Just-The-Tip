@@ -16,6 +16,9 @@ export interface ParsedReceiptTextResult {
   total: number;
   items: ReceiptItem[];
   serviceType: ServiceType;
+  /** The receipt backs up its own numbers (total printed twice, labelled parts add up, or the printed
+   *  tax rate fits). When false, the amounts may be misread and are worth a second opinion. */
+  amountsConfirmed: boolean;
   rawText?: string;
 }
 
@@ -381,11 +384,17 @@ export function parseReceiptText(text: string): ParsedReceiptTextResult {
 
   // Receipts repeat the amount due (order total, amount due, paid...), while OCR misreads tend to be
   // one-offs: take the most frequent total, preferring the larger on a tie
+  let totalRepeated = false;
   if (totalCandidates.length) {
     const counts = new Map<number, number>();
     for (const v of totalCandidates) counts.set(v, (counts.get(v) || 0) + 1);
-    total = [...counts.entries()].sort((a, b) => b[1] - a[1] || b[0] - a[0])[0][0];
+    const [best, count] = [...counts.entries()].sort((a, b) => b[1] - a[1] || b[0] - a[0])[0];
+    total = best;
+    totalRepeated = count >= 2;
   }
+  const subtotalFromLabel = preTaxSubtotal > 0;
+  let structuralMatch = false;
+  let taxRateConfirms = false;
 
   const totalSurcharges = surcharges.reduce((acc, s) => acc + s.amount, 0);
   const round2 = (n: number) => Math.round(n * 100) / 100;
@@ -403,6 +412,7 @@ export function parseReceiptText(text: string): ParsedReceiptTextResult {
         const run = round2(unlabelled.slice(j, i).reduce((a, b) => a + b, 0));
         if (near(unlabelled[i], run)) {
           preTaxSubtotal = unlabelled[i];
+          structuralMatch = true;
           if (tax === 0) tax = rest;
           const drop = new Set([unlabelled[i], rest]);
           items.splice(0, items.length, ...items.filter((it) => ![...drop].some((v) => near(it.price, v))));
@@ -411,6 +421,10 @@ export function parseReceiptText(text: string): ParsedReceiptTextResult {
       }
     }
   }
+
+  // Labelled subtotal and total that add up as read, before any of the repairs below
+  const labelledPartsAddUp =
+    subtotalFromLabel && total > 0 && near(preTaxSubtotal + tax + serviceCharge + totalSurcharges, total) && tax <= preTaxSubtotal * 0.35;
 
   // If subtotal was not explicitly found, infer it strictly excluding tax and surcharges
   if (preTaxSubtotal === 0 && total > 0) {
@@ -432,7 +446,8 @@ export function parseReceiptText(text: string): ParsedReceiptTextResult {
     const rateFits = Math.abs(base * taxRate - tax) <= Math.max(0.02, tax * 0.02);
     // Tax-inclusive receipts (VAT already in the prices) are consistent with tax = total x r/(1+r)
     const inclusiveFits = near(round2(total - total / (1 + taxRate)), tax) && near(preTaxSubtotal + tax, total);
-    if (!(addsUp && rateFits) && !inclusiveFits) {
+    taxRateConfirms = (addsUp && rateFits) || inclusiveFits;
+    if (!taxRateConfirms) {
       const taxedBase = round2(total / (1 + taxRate));
       const sub = round2(taxedBase - serviceCharge - totalSurcharges);
       if (sub > 0) {
@@ -451,6 +466,12 @@ export function parseReceiptText(text: string): ParsedReceiptTextResult {
     }
   }
 
+  // Two or more line items that add up to the subtotal (or to a total with nothing added on top)
+  const itemsSum = round2(items.reduce((acc, it) => acc + (Number(it.price) || 0), 0));
+  const itemsAddUp = items.length >= 2 && (near(itemsSum, preTaxSubtotal) || near(itemsSum, total));
+  const amountsConfirmed =
+    total > 0 && preTaxSubtotal > 0 && (totalRepeated || labelledPartsAddUp || structuralMatch || taxRateConfirms || itemsAddUp);
+
   return {
     merchantName,
     city: detectedCity,
@@ -466,6 +487,7 @@ export function parseReceiptText(text: string): ParsedReceiptTextResult {
     total,
     items,
     serviceType: detectServiceType(normalized),
+    amountsConfirmed,
     rawText: text,
   };
 }
