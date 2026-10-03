@@ -461,37 +461,70 @@ app.get('/api/config', (_req: Request, res: Response) => {
   res.json({ ai: hasGeminiKey, places: Boolean(mapsKey) });
 });
 
+// Google place types to look for nearby, per kind of service (taxis have no venue)
+const NEARBY_TYPES: Record<string, string[]> = {
+  restaurant: ['restaurant'],
+  bar: ['bar', 'pub', 'night_club'],
+  cafe: ['cafe', 'coffee_shop', 'bakery'],
+  beauty: ['beauty_salon', 'hair_salon', 'nail_salon', 'spa', 'massage'],
+  hotel: ['hotel', 'lodging'],
+};
+const PLACE_FIELDS = [
+  'id', 'displayName', 'formattedAddress', 'rating', 'userRatingCount', 'googleMapsUri', 'googleMapsLinks', 'reviews',
+  'reviewSummary', 'primaryTypeDisplayName', 'priceLevel', 'editorialSummary', 'currentOpeningHours',
+  'regularOpeningHours', 'nationalPhoneNumber', 'websiteUri',
+];
+
 // Venue lookup (Google Places API, New): rating, Google's review summary and the latest reviews, plus
 // the "write a review" link. Only passes Google's data through; the phone picks out tipping comments,
 // deals and happy hours itself.
+//   query: the venue as the receipt describes it (name with address or city, a phone number, or an address)
+//   near:  a precise phone position at scan time; biases the search tightly, or (with no query) finds the
+//          nearest venue of the receipt's kind of service
 app.post('/api/venue', async (req: Request, res: Response) => {
   if (!mapsKey) return res.status(404).json({ error: 'Venue lookup is not configured' });
-  // query: the venue as the receipt describes it (name with address or city, a phone number, or an address)
-  const { query, latitude, longitude, lang } = req.body || {};
-  if (typeof query !== 'string' || !query.trim()) return res.status(400).json({ error: 'A search query is required' });
+  const { query, latitude, longitude, near, serviceType, lang } = req.body || {};
+  const hasQuery = typeof query === 'string' && query.trim().length > 0;
+  const nearOk = near && Number.isFinite(near.latitude) && Number.isFinite(near.longitude);
+  const nearbyTypes = NEARBY_TYPES[serviceType] || NEARBY_TYPES.restaurant;
+  if (!hasQuery && !(nearOk && serviceType !== 'taxi')) return res.status(400).json({ error: 'A search query or position is required' });
+
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort(), 6000);
   try {
-    const hasCoords = Number.isFinite(latitude) && Number.isFinite(longitude);
-    const response = await fetch('https://places.googleapis.com/v1/places:searchText', {
+    const languageCode = typeof lang === 'string' ? lang : 'en';
+    const radius = nearOk ? Math.min(250, Math.max(60, Number(near.accuracy) * 2 || 100)) : 5000;
+    const center = nearOk ? { latitude: near.latitude, longitude: near.longitude } : { latitude, longitude };
+    const hasCenter = nearOk || (Number.isFinite(latitude) && Number.isFinite(longitude));
+    const [endpoint, body] = hasQuery
+      ? [
+          'searchText',
+          {
+            textQuery: query.trim().slice(0, 200),
+            languageCode,
+            pageSize: 1,
+            ...(hasCenter ? { locationBias: { circle: { center, radius } } } : {}),
+          },
+        ]
+      : [
+          'searchNearby',
+          {
+            includedTypes: nearbyTypes,
+            maxResultCount: 1,
+            rankPreference: 'DISTANCE',
+            languageCode,
+            locationRestriction: { circle: { center, radius } },
+          },
+        ];
+    const response = await fetch(`https://places.googleapis.com/v1/places:${endpoint}`, {
       method: 'POST',
       signal: controller.signal,
       headers: {
         'Content-Type': 'application/json',
         'X-Goog-Api-Key': mapsKey,
-        'X-Goog-FieldMask': [
-          'places.id', 'places.displayName', 'places.formattedAddress', 'places.rating', 'places.userRatingCount',
-          'places.googleMapsUri', 'places.googleMapsLinks', 'places.reviews', 'places.reviewSummary',
-          'places.primaryTypeDisplayName', 'places.priceLevel', 'places.editorialSummary', 'places.currentOpeningHours',
-          'places.regularOpeningHours', 'places.nationalPhoneNumber', 'places.websiteUri',
-        ].join(','),
+        'X-Goog-FieldMask': PLACE_FIELDS.map((f) => `places.${f}`).join(','),
       },
-      body: JSON.stringify({
-        textQuery: query.trim().slice(0, 200),
-        languageCode: typeof lang === 'string' ? lang : 'en',
-        pageSize: 1,
-        ...(hasCoords ? { locationBias: { circle: { center: { latitude, longitude }, radius: 5000 } } } : {}),
-      }),
+      body: JSON.stringify(body),
     });
     const data: any = await response.json().catch(() => ({}));
     if (!response.ok) {
@@ -502,6 +535,8 @@ app.post('/api/venue', async (req: Request, res: Response) => {
     if (!place) return res.json({ found: false });
     res.json({
       found: true,
+      // Found only by being the closest venue: the app asks the user to check it's the right place
+      matchedBy: hasQuery ? 'receipt' : 'location',
       name: place.displayName?.text,
       address: place.formattedAddress,
       rating: place.rating,

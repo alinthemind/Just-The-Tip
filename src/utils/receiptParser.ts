@@ -186,9 +186,14 @@ function pickPhone(lines: string[]): string | undefined {
 }
 
 /** The first street address line near the top (a number plus a street word, or a CJK/Thai address) */
+// "Label: value" lines (table, cashier, order no.) aren't addresses, unless the label says address
+const LABELLED_LINE_RE = /^[^:：]{1,8}[:：]/;
+const ADDRESS_LABEL_RE = /^\s*(地址|地點|地点|住所|所在地|주소|ที่อยู่|address|addr|adresse|direcci[oó]n|indirizzo|endere[cç]o|anschrift)/i;
+
 function pickAddress(lines: string[], merchantName: string): string | undefined {
   for (const line of lines.slice(0, 10)) {
     if (line === merchantName || line.length < 6 || PHONE_LABEL_RE.test(line) || DATE_RE.test(line)) continue;
+    if (LABELLED_LINE_RE.test(line) && !ADDRESS_LABEL_RE.test(line)) continue;
     if (TOTAL_RE.test(line) || SUBTOTAL_RE.test(line) || TAX_RE.test(line)) continue;
     const letters = (line.match(/[\p{L}]/gu) || []).length;
     if (letters / line.replace(/\s/g, '').length < 0.5) continue; // OCR noise
@@ -212,11 +217,34 @@ const NAME_SCRIPT: Record<string, RegExp> = {
  * "Receipt"/结账单 or an address, and (for CJK/Thai receipts) is written in that script. Lines with
  * business words (店, restaurant...) win. Falls back to a plain label rather than OCR noise.
  */
+// Receipt titles printed beside the name ("结账单" = bill), never part of it
+const RECEIPT_TITLE_RE =
+  /\s*(结账单|結賬單|结帐单|結帳單|预结单|預結單|消费单|消費單|点菜单|點菜單|收据|收據|小票|账单|帳單|領収書|領収証|レシート|お会計|영수증|ใบเสร็จรับเงิน|ใบเสร็จ|guest\s*check)\s*/gu;
+
+/** Header lines with titles removed, and a name that wraps mid-bracket ("…（石" / "厦店）") joined back up */
+function headerLines(lines: string[]): string[] {
+  const out: string[] = [];
+  const top = lines.slice(0, 7).map((l) => l.replace(RECEIPT_TITLE_RE, ' ').trim());
+  for (let i = 0; i < top.length; i++) {
+    const line = top[i];
+    if (!line) continue;
+    const opens = (line.match(/[（(]/g) || []).length;
+    const closes = (line.match(/[）)]/g) || []).length;
+    if (opens > closes && top[i + 1] && /[）)]/.test(top[i + 1])) {
+      out.push(`${line}${top[i + 1]}`.replace(/\s+(?=[\p{Script=Han}（）()])|(?<=[\p{Script=Han}（）()])\s+/gu, ''));
+      i++;
+    } else {
+      out.push(line);
+    }
+  }
+  return out;
+}
+
 function pickMerchantName(lines: string[], country: string): string {
   const script = NAME_SCRIPT[country];
   let best = '';
   let bestScore = 0;
-  for (const raw of lines.slice(0, 6)) {
+  for (const raw of headerLines(lines).slice(0, 6)) {
     const line = raw
       .replace(/^[^\p{L}\p{N}]+|[^\p{L}\p{N})）]+$/gu, '')
       .replace(/(\s+[^\p{L}\s]+)+$/u, ''); // trailing tokens with no letters ("<5", "| 3")
@@ -225,8 +253,10 @@ function pickMerchantName(lines: string[], country: string): string {
     if (letters < 2 || letters / Math.max(1, visible) < 0.6) continue;
     if (GENERIC_HEADER.test(line)) continue;
     if (ADDRESS_RE.test(line) && /\d/.test(line)) continue;
-    // A line with a price is a dish, not the name
-    if (/[$€£¥₩฿₫₹₱]|\d+[.,]\d{2}\b|\d{2,}\s*(元|円|원|บาท)?\s*$/.test(line)) continue;
+    // A line with a price is a dish, not the name (checked before trimming the price off), and once
+    // the priced lines start, the header is over
+    if (/[$€£¥₩฿₫₹₱]\s?\d|\d+[.,]\d{2}\s*$/.test(raw)) break;
+    if (/\d+[.,]\d{2}\b|\d{2,}\s*(元|円|원|บาท)?\s*$/.test(raw)) continue;
     // CJK/Thai receipts: the name must be in that script, unless it's a clear English business name
     // ("Calypso Cabaret"); Latin text there is otherwise usually OCR noise from big bold headers
     if (script && (line.match(script) || []).length < 2 && !BUSINESS_WORD_RE.test(line)) continue;
@@ -304,6 +334,16 @@ function joinSplitAmounts(lines: string[]): string[] {
     }
   }
   return out;
+}
+
+/** The largest amount printed anywhere in the text (a receipt's total is never smaller than this) */
+export function largestAmount(text: string): number {
+  let max = 0;
+  for (const line of (text || '').split('\n')) {
+    const money = extractMoney(line.replace(SPACE_INSIDE_SCRIPT, '').trim());
+    if (money !== null && money > max) max = money;
+  }
+  return max;
 }
 
 /** How much this OCR text looks like a real receipt: label words recognised plus amounts found */

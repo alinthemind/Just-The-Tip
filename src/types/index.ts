@@ -70,6 +70,8 @@ export interface ScannedReceiptData {
   /** Venue street address and phone number as printed on the receipt, to find it on Google */
   venueAddress?: string;
   venuePhone?: string;
+  /** Precise phone position at scan time, when the user is most likely at the venue (same country) */
+  venueFix?: { latitude: number; longitude: number; accuracy: number } | null;
   /** Where the receipt was scanned (photo GPS or the phone), to find the venue on Google */
   latitude?: number | null;
   longitude?: number | null;

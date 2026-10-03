@@ -255,3 +255,23 @@ export function setLocationFromReceipt(city: string, state = '', countryCode = '
   // location (used for fallbacks and on reload) always stays the device's or the user's choice
   return loc;
 }
+
+/**
+ * A fresh, precise position for finding the venue the user is sitting in. Only asked when location
+ * access is already granted (a scan never pops up a permission prompt), and only kept when it's
+ * accurate to ~150 m. Resolves null otherwise.
+ */
+export async function getVenueFix(): Promise<{ latitude: number; longitude: number; accuracy: number } | null> {
+  try {
+    if (!canUseBrowserGps() || !navigator.permissions) return null;
+    const status = await navigator.permissions.query({ name: 'geolocation' as PermissionName });
+    if (status.state !== 'granted') return null;
+    const pos = await new Promise<GeolocationPosition>((resolve, reject) =>
+      navigator.geolocation.getCurrentPosition(resolve, reject, { enableHighAccuracy: true, timeout: 8000, maximumAge: 120000 })
+    );
+    const { latitude, longitude, accuracy } = pos.coords;
+    return accuracy <= 150 ? { latitude, longitude, accuracy } : null;
+  } catch {
+    return null;
+  }
+}

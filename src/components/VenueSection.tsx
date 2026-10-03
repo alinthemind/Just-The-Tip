@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { AlertTriangle, BadgePercent, Clock, ExternalLink, Globe, HandCoins, MapPin, Phone, Star, Store, Tag, ThumbsUp } from 'lucide-react';
+import { AlertTriangle, BadgePercent, Clock, ExternalLink, Globe, HandCoins, LocateFixed, MapPin, Phone, Star, Store, Tag, ThumbsUp } from 'lucide-react';
 import type { LucideIcon } from 'lucide-react';
 import { ScannedReceiptData } from '../types';
 import { Card, IconTile, SectionCaption, TileColor } from './ui';
@@ -28,14 +28,19 @@ export function useVenue(receipt: ScannedReceiptData, lang: string): VenueInfo |
       // The phone's position only helps when it's where the receipt is from (not a city printed on it)
       latitude: receipt.locationSource === 'receipt' ? null : receipt.latitude,
       longitude: receipt.locationSource === 'receipt' ? null : receipt.longitude,
+      near: receipt.venueFix,
+      serviceType: receipt.serviceType,
       lang: PLACES_LANG[lang] || lang,
     }).then((v) => alive && setVenue(v));
     return () => {
       alive = false;
     };
-  }, [receipt.merchantName, receipt.venueAddress, receipt.venuePhone, receipt.city, receipt.latitude, receipt.longitude, receipt.locationSource, lang]);
+  }, [receipt.merchantName, receipt.venueAddress, receipt.venuePhone, receipt.city, receipt.latitude, receipt.longitude, receipt.locationSource, receipt.venueFix, receipt.serviceType, lang]);
   return venue;
 }
+
+// What to search Google Maps for near the phone, per kind of service
+const MAPS_KIND: Record<string, string> = { restaurant: 'restaurants', bar: 'bars', cafe: 'cafes', beauty: 'salons', hotel: 'hotels', taxi: 'restaurants' };
 
 const Stars: React.FC<{ rating: number }> = ({ rating }) => (
   <span className="inline-flex" aria-hidden="true">
@@ -128,6 +133,12 @@ export const VenueSummary: React.FC<{ receipt: ScannedReceiptData; venue: VenueI
           <div className="flex-1 min-w-0">
             <p className="text-[17px] text-zinc-900 dark:text-white truncate">{name || receipt.merchantName}</p>
             {subline && <p className="text-[13px] text-zinc-500 dark:text-zinc-400 truncate">{subline}</p>}
+            {venue?.matchedBy === 'location' && (
+              <p className="flex items-center gap-1 text-[12px] text-ig-orange">
+                <LocateFixed className="w-3.5 h-3.5" />
+                {t('matchedByLocation')}
+              </p>
+            )}
             {venue?.rating != null && (
               <p className="flex items-center gap-1.5 text-[13px] text-zinc-500 dark:text-zinc-400">
                 <span className="font-semibold text-zinc-900 dark:text-white tabular-nums">{venue.rating.toFixed(1)}</span>
@@ -302,7 +313,14 @@ export const RateOnGoogle: React.FC<{ receipt: ScannedReceiptData; venue: VenueI
 }) => {
   const href =
     venue?.writeReviewUri ||
-    mapsSearchUrl({ ...venueClues(receipt), latitude: receipt.latitude, longitude: receipt.longitude, nearPhoto: receipt.locationSource === 'photo-gps' });
+    mapsSearchUrl({
+      ...venueClues(receipt),
+      latitude: receipt.latitude,
+      longitude: receipt.longitude,
+      nearPhoto: receipt.locationSource === 'photo-gps',
+      near: receipt.venueFix,
+      kind: MAPS_KIND[receipt.serviceType || 'restaurant'],
+    });
   return (
     <a
       href={href}

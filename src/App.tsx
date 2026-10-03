@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { ActiveTab, GpsErrorCode, ScannedReceiptData, UserLocation } from './types';
-import { getSavedLocation, requestBrowserGps, saveLocation, setManualLocation, setLocationFromReceipt } from './utils/geolocation';
+import { getSavedLocation, getVenueFix, requestBrowserGps, saveLocation, setManualLocation, setLocationFromReceipt } from './utils/geolocation';
 import { getTippingRuleForCountry, getServiceTiers, serviceAdvice, SERVICE_TYPES, ServiceType } from './data/tippingCulture';
 import { prefetchOcrModels, runClientOcr } from './utils/ocr';
 import { shrinkForUpload } from './utils/uploadImage';
@@ -254,23 +254,22 @@ export default function App() {
     setScanStep(t('stepReading'));
 
     try {
-      // If photo has EXIF GPS from phone, reverse geocode it as candidate photo location
-      let photoLocationCandidate: any = null;
-      if (photoGps && typeof photoGps.latitude === 'number' && typeof photoGps.longitude === 'number') {
-        setScanStep(t('stepPhotoGps'));
-        try {
-          const revRes = await fetch('/api/reverse-geocode', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ latitude: photoGps.latitude, longitude: photoGps.longitude }),
-          });
-          if (revRes.ok) {
-            photoLocationCandidate = await revRes.json();
-          }
-        } catch (revErr) {
-          console.warn('Photo GPS geocode failed:', revErr);
-        }
-      }
+      // These run alongside the reading below: the place name for the photo's EXIF GPS, and a precise
+      // phone position for finding the venue if the user is scanning at the table (demo receipts skip it)
+      const photoLocationPromise: Promise<any> =
+        photoGps && typeof photoGps.latitude === 'number' && typeof photoGps.longitude === 'number'
+          ? fetch('/api/reverse-geocode', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ latitude: photoGps.latitude, longitude: photoGps.longitude }),
+            })
+              .then((r) => (r.ok ? r.json() : null))
+              .catch((revErr) => {
+                console.warn('Photo GPS geocode failed:', revErr);
+                return null;
+              })
+          : Promise.resolve(null);
+      const venueFixPromise = sampleInfo ? Promise.resolve(null) : getVenueFix();
 
       // Run local client-side OCR in parallel to capture merchant name, city (e.g. Hong Kong, Chicago) & surcharges
       let clientOcrResult = null;
@@ -290,6 +289,8 @@ export default function App() {
       } catch (ocrErr) {
         console.warn('Client OCR notice:', ocrErr);
       }
+
+      const photoLocationCandidate = await photoLocationPromise;
 
       // Precedence: Demo sample info > Receipt text location > Photo EXIF location > Phone live GPS
       const candidateCountry =
@@ -551,6 +552,8 @@ export default function App() {
         aiNotice: data.aiNotice,
         isFallback: data.isFallback,
         needsReview: Boolean(data.needsReview) || (preTaxSubtotal <= 0 && total <= 0),
+        // The phone's position only identifies the venue if the receipt is from the country the phone is in
+        venueFix: !clientOcrResult?.countryCode || clientOcrResult.countryCode === userLocation.countryCode ? await venueFixPromise : null,
         venueAddress: clientOcrResult?.address,
         venuePhone: clientOcrResult?.phone,
         latitude: candidateLat,
