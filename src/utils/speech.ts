@@ -41,7 +41,11 @@ function scoreVoice(voice: SpeechSynthesisVoice, locale: string): number {
   if (FEMALE_VOICE.test(name)) score += 5;
   else if (/^google/i.test(name) && !/male/i.test(name)) score += 4; // Google's default voices are female
   if (MALE_VOICE.test(name) && !/female/i.test(name)) score -= 8;
-  if (/enhanced|premium|natural|neural/i.test(name)) score += 1;
+  // Natural-sounding voices first: Edge's "Online (Natural)" neural voices, Apple's downloadable
+  // Enhanced/Premium voices, and network voices (usually neural); small "Compact" voices last
+  if (/natural|neural|premium|enhanced|wavenet|studio/i.test(name)) score += 6;
+  if (voice.localService === false) score += 2;
+  if (/compact/i.test(name)) score -= 3;
   // Apple's novelty "Eloquence" voices sound robotic; use them only when nothing else speaks the language
   if (/^(flo|grandma|grandpa|shelley|sandy|rocko|eddy|reed)\b/i.test(name)) score -= 6;
   return score;
@@ -84,14 +88,14 @@ export function speakInLanguage(lang: LanguageCode, text: string): void {
   const synth = window.speechSynthesis;
   const locale = SPEECH_LOCALE[lang] || 'en-US';
   if (!cachedVoices.length) cachedVoices = synth.getVoices();
-  const { voice, confidentFemale } = pickVoice(cachedVoices, locale);
+  const { voice } = pickVoice(cachedVoices, locale);
 
   const utterance = new SpeechSynthesisUtterance(text);
   utterance.lang = voice?.lang || locale;
   if (voice) utterance.voice = voice;
-  // If no known female voice exists for this language, a slightly higher pitch is the closest we can get
-  utterance.pitch = confidentFemale ? 1 : 1.25;
-  utterance.rate = 0.95;
+  // Natural pitch and pace; artificially raised pitch sounds robotic, so it's never used
+  utterance.pitch = 1;
+  utterance.rate = 1;
 
   synth.cancel(); // switching languages quickly shouldn't queue greetings
   synth.speak(utterance);
