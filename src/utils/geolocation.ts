@@ -1,4 +1,4 @@
-import { UserLocation } from '../types';
+import { GpsErrorCode, UserLocation } from '../types';
 import { getTippingRuleForCountry } from '../data/tippingCulture';
 
 const LOCATION_STORAGE_KEY = 'globaltip_user_location';
@@ -118,10 +118,14 @@ export function canUseBrowserGps(): boolean {
   return typeof navigator !== 'undefined' && !!navigator.geolocation && (typeof window === 'undefined' || window.isSecureContext);
 }
 
-async function ipFallback(error: string, ipPromise: Promise<UserLocation | null> = getIpLocation()): Promise<UserLocation> {
+async function ipFallback(
+  errorCode: GpsErrorCode,
+  error: string,
+  ipPromise: Promise<UserLocation | null> = getIpLocation()
+): Promise<UserLocation> {
   const ipLoc = await ipPromise;
-  if (ipLoc) return { ...ipLoc, error };
-  return { ...getSavedLocation(), isGps: false, error };
+  if (ipLoc) return { ...ipLoc, error, errorCode };
+  return { ...getSavedLocation(), isGps: false, error, errorCode };
 }
 
 /**
@@ -132,9 +136,9 @@ async function ipFallback(error: string, ipPromise: Promise<UserLocation | null>
  */
 export function requestBrowserGps(onUpdate?: (loc: UserLocation) => void): Promise<UserLocation> {
   if (!canUseBrowserGps()) {
-    return ipFallback(
-      navigator.geolocation ? 'GPS needs a secure (https) connection' : 'Geolocation is not supported by your browser'
-    );
+    return navigator.geolocation
+      ? ipFallback('insecure', 'GPS needs a secure (https) connection')
+      : ipFallback('unsupported', 'Geolocation is not supported by your browser');
   }
 
   return new Promise((resolve) => {
@@ -151,7 +155,7 @@ export function requestBrowserGps(onUpdate?: (loc: UserLocation) => void): Promi
         if (isSettled) return;
         isSettled = true;
         console.warn('Browser GPS is slow, using IP network location until it responds');
-        resolve(await ipFallback('GPS request timed out', ipPromise));
+        resolve(await ipFallback('timeout', 'GPS request timed out', ipPromise));
       }, ms);
 
     // Give the user time to answer the permission prompt before falling back
@@ -185,7 +189,9 @@ export function requestBrowserGps(onUpdate?: (loc: UserLocation) => void): Promi
         if (isSettled) return;
         isSettled = true;
         console.warn('Browser GPS denied or unavailable, trying IP location:', error.message);
-        resolve(await ipFallback(error.message || 'Location access denied or unavailable', ipPromise));
+        const code: GpsErrorCode =
+          error.code === error.PERMISSION_DENIED ? 'denied' : error.code === error.TIMEOUT ? 'timeout' : 'unavailable';
+        resolve(await ipFallback(code, error.message || 'Location access denied or unavailable', ipPromise));
       },
       {
         // City-level accuracy is all tipping needs; Wi-Fi/cell positioning answers much faster than satellite GPS

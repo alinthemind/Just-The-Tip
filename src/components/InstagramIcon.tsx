@@ -31,8 +31,8 @@ export const InstagramIcon: React.FC<InstagramIconProps> = ({ className = 'w-6 h
 };
 
 /**
- * Just the Tip mark: a sleek white mushroom on Instagram's signature glow, with a sparkle at the tip.
- * Cheeky by shape alone; no detail beyond the silhouette, a gloss line and the sparkle.
+ * Just the Tip mark: a sleek white mushroom on Instagram's signature glow.
+ * Cheeky by shape alone; no detail beyond the silhouette and a gloss line.
  */
 export const MushroomTipLogo: React.FC<{ size?: number; className?: string }> = ({ size = 36, className = '' }) => {
   const id = React.useId().replace(/:/g, '');
@@ -68,8 +68,6 @@ export const MushroomTipLogo: React.FC<{ size?: number; className?: string }> = 
       <path d="M18 37.2 C25 36.2 39 36.2 46 37.2" fill="none" stroke="#d6249f" strokeOpacity="0.22" strokeWidth="1.4" strokeLinecap="round" />
       {/* gloss */}
       <path d="M17.5 26 C19.5 19.5 24.5 15.6 30.5 15" fill="none" stroke="#fd5949" strokeOpacity="0.28" strokeWidth="2.6" strokeLinecap="round" />
-      {/* sparkle at the tip */}
-      <path d="M46.5 4.5 L47.9 8.6 L52 10 L47.9 11.4 L46.5 15.5 L45.1 11.4 L41 10 L45.1 8.6 Z" fill="#ffffff" />
     </svg>
   );
 };

@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { ActiveTab, ScannedReceiptData, UserLocation } from './types';
+import { ActiveTab, GpsErrorCode, ScannedReceiptData, UserLocation } from './types';
 import { getSavedLocation, requestBrowserGps, saveLocation, setManualLocation, setLocationFromReceipt } from './utils/geolocation';
 import { getTippingRuleForCountry, getServiceTiers, SERVICE_TYPES, ServiceType, TippingCultureRule } from './data/tippingCulture';
 import { runClientOcr } from './utils/ocr';
@@ -10,14 +10,24 @@ import { TipResults } from './components/TipResults';
 import { ManualCalculator } from './components/ManualCalculator';
 import { CultureGuide } from './components/CultureGuide';
 import { LocationPickerModal } from './components/LocationPickerModal';
+import { LocationPermissionSheet } from './components/LocationPermissionSheet';
 import { AlertCircle, Lock, Navigation, Wifi, X } from 'lucide-react';
 import { LanguageCode, SUPPORTED_LANGUAGES, getTranslation } from './data/translations';
 
 const HISTORY_STORAGE_KEY = 'globaltip_scans_history';
 const LANGUAGE_STORAGE_KEY = 'globaltip_user_language';
 const THEME_STORAGE_KEY = 'globaltip_user_theme';
+const LOCATION_SHEET_SESSION_KEY = 'globaltip_location_sheet_shown';
 
 export type ThemeMode = 'dark' | 'light';
+
+const GPS_ERROR_KEYS: Record<GpsErrorCode, string> = {
+  insecure: 'locNeedsHttps',
+  denied: 'locDenied',
+  unavailable: 'locNoSignal',
+  timeout: 'locTimeout',
+  unsupported: 'locNoSignal',
+};
 
 const SERVICE_ADVICE: Record<ServiceType, (rule: TippingCultureRule) => string> = {
   restaurant: (r) => r.restaurantAdvice,
@@ -71,6 +81,8 @@ export default function App() {
   const [userLocation, setUserLocation] = useState<UserLocation>(getSavedLocation);
   const [isLocating, setIsLocating] = useState<boolean>(false);
   const [isLocationModalOpen, setIsLocationModalOpen] = useState<boolean>(false);
+  // Shown when GPS is blocked in a way the user can fix (permission off, insecure page)
+  const [locationSheetReason, setLocationSheetReason] = useState<GpsErrorCode | null>(null);
   const [toastMessage, setToastMessage] = useState<{ text: string; type: 'success' | 'error' | 'info' } | null>(null);
 
   // Default to Dark Mode as requested
@@ -141,7 +153,7 @@ export default function App() {
   // Auto-dismiss toast
   useEffect(() => {
     if (toastMessage) {
-      const timer = setTimeout(() => setToastMessage(null), 3500);
+      const timer = setTimeout(() => setToastMessage(null), toastMessage.type === 'success' ? 3500 : 7000);
       return () => clearTimeout(timer);
     }
   }, [toastMessage]);
@@ -160,16 +172,32 @@ export default function App() {
       });
       if (!receiptOpenRef.current) setUserLocation(loc);
 
+      // Fixable problems get the "Turn On Location" sheet: always on a manual refresh, once per session on launch
+      const fixable = loc.errorCode === 'denied' || loc.errorCode === 'insecure' || loc.errorCode === 'unavailable';
+      if (fixable) {
+        let alreadyAsked = false;
+        try {
+          alreadyAsked = sessionStorage.getItem(LOCATION_SHEET_SESSION_KEY) === '1';
+          sessionStorage.setItem(LOCATION_SHEET_SESSION_KEY, '1');
+        } catch {}
+        if (manualTrigger || !alreadyAsked) {
+          setLocationSheetReason(loc.errorCode!);
+          return;
+        }
+      }
+
       if (manualTrigger) {
+        // Say why GPS wasn't used, so the user knows what to fix
+        const reason = loc.errorCode ? t(GPS_ERROR_KEYS[loc.errorCode]) : '';
         if (loc.error && !loc.city && loc.countryCode === 'US') {
           setToastMessage({
-            text: t('locFailed'),
+            text: reason ? `${reason} ${t('locFailed')}` : t('locFailed'),
             type: 'error',
           });
           setIsLocationModalOpen(true);
         } else if (loc.source !== 'gps') {
           setToastMessage({
-            text: `${t('locApproximate')}: ${loc.city || loc.countryName} ${loc.flag}`,
+            text: `${reason ? `${reason} ` : ''}${t('locApproximate')}: ${loc.city || loc.countryName} ${loc.flag}`,
             type: 'info',
           });
         } else {
@@ -600,6 +628,14 @@ export default function App() {
         onSelectCountry={handleSelectCountry}
         onRefreshGps={() => handleRefreshGps(true)}
         isLocating={isLocating}
+        currentLang={currentLang}
+      />
+
+      <LocationPermissionSheet
+        reason={locationSheetReason}
+        onClose={() => setLocationSheetReason(null)}
+        onRetry={() => handleRefreshGps(true)}
+        onChooseCountry={() => setIsLocationModalOpen(true)}
         currentLang={currentLang}
       />
 

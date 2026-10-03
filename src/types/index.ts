@@ -80,6 +80,10 @@ export interface UserLocation {
   isGps: boolean;
   source?: 'receipt' | 'photo-gps' | 'gps' | 'ip' | 'default' | 'manual';
   error?: string;
+  /** Why GPS wasn't used, so the UI can say what to fix */
+  errorCode?: GpsErrorCode;
 }
+
+export type GpsErrorCode = 'insecure' | 'denied' | 'unavailable' | 'timeout' | 'unsupported';
 
 export type ActiveTab = 'scanner' | 'manual' | 'guide';
