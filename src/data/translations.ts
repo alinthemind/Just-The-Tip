@@ -114,7 +114,7 @@ export const TRANSLATIONS: Record<LanguageCode, Record<string, string>> = {
     locStepsIosApp: 'On iPhone: Settings › Privacy & Security › Location Services › {browser} › While Using the App. Then reload this page and tap Allow.',
     locWhereTitle: 'Where Is This Restaurant?',
     locWhereBody: 'This receipt doesn\'t show a location, so the tip uses an approximate guess. Use your location or choose the country.',
-    heroTagline: 'A Little Comes A Long Way.',
+    heroTagline: 'A little comes a long way.',
   },
   fr: {
     appName: 'Just the Tip',
