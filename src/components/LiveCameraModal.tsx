@@ -1,13 +1,16 @@
 import React, { useRef, useState, useEffect } from 'react';
 import { X, RefreshCw, AlertCircle, SwitchCamera } from 'lucide-react';
+import { LanguageCode, getTranslation } from '../data/translations';
 
 interface LiveCameraModalProps {
   isOpen: boolean;
+  currentLang?: LanguageCode;
   onClose: () => void;
   onCapture: (base64Image: string) => void;
 }
 
-export const LiveCameraModal: React.FC<LiveCameraModalProps> = ({ isOpen, onClose, onCapture }) => {
+export const LiveCameraModal: React.FC<LiveCameraModalProps> = ({ isOpen, onClose, onCapture, currentLang = 'en' }) => {
+  const t = (key: string) => getTranslation(currentLang, key);
   const videoRef = useRef<HTMLVideoElement | null>(null);
   // A ref, not state: effect cleanups capture stale state and would never stop the stream
   const streamRef = useRef<MediaStream | null>(null);
@@ -56,9 +59,7 @@ export const LiveCameraModal: React.FC<LiveCameraModalProps> = ({ isOpen, onClos
     } catch (err: any) {
       console.error('Camera access failed:', err);
       setCameraError(
-        err.name === 'NotAllowedError'
-          ? 'Camera permission denied. Please allow camera access in your browser settings, or use the file upload option.'
-          : 'Unable to access camera device. Please use photo upload instead.'
+        err.name === 'NotAllowedError' ? t('camDenied') : t('camUnavailable')
       );
     } finally {
       setIsStarting(false);
@@ -99,7 +100,7 @@ export const LiveCameraModal: React.FC<LiveCameraModalProps> = ({ isOpen, onClos
             onClose();
           }}
           className="w-9 h-9 rounded-full bg-white/15 hover:bg-white/25 text-white flex items-center justify-center transition-colors cursor-pointer"
-          aria-label="Close camera"
+          aria-label={t('camClose')}
         >
           <X className="w-5 h-5" />
         </button>
@@ -114,7 +115,7 @@ export const LiveCameraModal: React.FC<LiveCameraModalProps> = ({ isOpen, onClos
             <button
               type="button"
               onClick={() => startCamera(facingMode)}
-              aria-label="Try again"
+              aria-label={t('locTryAgain')}
               className="w-11 h-11 rounded-full bg-white/15 hover:bg-white/25 flex items-center justify-center mx-auto cursor-pointer"
             >
               <RefreshCw className="w-5 h-5" />
@@ -145,8 +146,8 @@ export const LiveCameraModal: React.FC<LiveCameraModalProps> = ({ isOpen, onClos
           onClick={handleCapture}
           disabled={!!cameraError || isStarting}
           className="w-[76px] h-[76px] rounded-full border-[4px] border-white flex items-center justify-center disabled:opacity-40 cursor-pointer group"
-          title="Snap Photo"
-          aria-label="Snap Photo"
+          title={t('camSnap')}
+          aria-label={t('camSnap')}
         >
           <span className="w-[62px] h-[62px] rounded-full bg-white group-active:scale-90 transition-transform" />
         </button>
@@ -156,8 +157,8 @@ export const LiveCameraModal: React.FC<LiveCameraModalProps> = ({ isOpen, onClos
           onClick={toggleFacingMode}
           disabled={!!cameraError || isStarting}
           className="w-12 h-12 rounded-full bg-white/15 hover:bg-white/25 text-white flex items-center justify-center transition-colors disabled:opacity-30 cursor-pointer"
-          title="Flip Camera"
-          aria-label="Flip Camera"
+          title={t('camFlip')}
+          aria-label={t('camFlip')}
         >
           <SwitchCamera className="w-6 h-6" />
         </button>

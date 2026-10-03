@@ -4,15 +4,16 @@ import { Search, Utensils, Wine, Car, Coffee, Sparkles, BedDouble, Lightbulb, Ba
 import type { LucideIcon } from 'lucide-react';
 import { Card, IconTile, TileColor } from './ui';
 import { LanguageCode, getTranslation } from '../data/translations';
+import { localizedCountryName } from '../utils/countryName';
 
 type RegionKey = 'all' | 'americas' | 'europe' | 'asia' | 'middle-east';
 
-const REGION_CONFIG: { id: RegionKey; label: string; icon: string }[] = [
-  { id: 'all', label: 'All', icon: '🌐' },
-  { id: 'americas', label: 'Americas', icon: '🌎' },
-  { id: 'europe', label: 'Europe', icon: '🌍' },
-  { id: 'asia', label: 'Asia Pacific', icon: '🌏' },
-  { id: 'middle-east', label: 'Middle East', icon: '🕌' },
+const REGION_CONFIG: { id: RegionKey; labelKey: string; icon: string }[] = [
+  { id: 'all', labelKey: 'regionAll', icon: '🌐' },
+  { id: 'americas', labelKey: 'regionAmericas', icon: '🌎' },
+  { id: 'europe', labelKey: 'regionEurope', icon: '🌍' },
+  { id: 'asia', labelKey: 'regionAsia', icon: '🌏' },
+  { id: 'middle-east', labelKey: 'regionMiddleEast', icon: '🕌' },
 ];
 
 const COUNTRY_REGION_MAP: Record<string, RegionKey> = {
@@ -114,13 +115,13 @@ export const CultureGuide: React.FC<{ currentLang?: LanguageCode }> = ({ current
   const [filterRegion, setFilterRegion] = useState<RegionKey>('all');
   const detailRef = useRef<HTMLDivElement>(null);
 
-  const allCountries = Object.values(COUNTRY_TIPPING_DATABASE).sort((a, b) =>
-    a.countryName.localeCompare(b.countryName)
-  );
+  const nameOf = (c: TippingCultureRule) => localizedCountryName(c.countryCode, currentLang, c.countryName);
+  const allCountries = Object.values(COUNTRY_TIPPING_DATABASE).sort((a, b) => nameOf(a).localeCompare(nameOf(b), currentLang));
 
   const matches = (c: TippingCultureRule, reg: RegionKey) => {
     const q = search.toLowerCase();
-    const matchSearch = c.countryName.toLowerCase().includes(q) || c.countryCode.toLowerCase().includes(q);
+    const matchSearch =
+      nameOf(c).toLowerCase().includes(q) || c.countryName.toLowerCase().includes(q) || c.countryCode.toLowerCase().includes(q);
     return matchSearch && (reg === 'all' || COUNTRY_REGION_MAP[c.countryCode] === reg);
   };
   const filteredCountries = allCountries.filter((c) => matches(c, filterRegion));
@@ -180,7 +181,7 @@ export const CultureGuide: React.FC<{ currentLang?: LanguageCode }> = ({ current
               }`}
             >
               <span>{reg.icon}</span>
-              <span>{reg.label}</span>
+              <span>{t(reg.labelKey)}</span>
             </button>
           ))}
         </div>
@@ -194,7 +195,7 @@ export const CultureGuide: React.FC<{ currentLang?: LanguageCode }> = ({ current
               <span className="text-[52px] leading-none">{selectedCountry.flag}</span>
               <div className="min-w-0">
                 <h3 className="text-[22px] font-bold tracking-tight text-zinc-900 dark:text-white truncate">
-                  {selectedCountry.countryName}
+                  {nameOf(selectedCountry)}
                 </h3>
                 <div className="text-[15px] text-zinc-500 dark:text-zinc-400 tabular-nums">
                   {selectedCountry.currencySymbol} · {selectedCountry.currencyCode}
@@ -253,7 +254,7 @@ export const CultureGuide: React.FC<{ currentLang?: LanguageCode }> = ({ current
               <span className="text-[26px] leading-none">{c.flag}</span>
               <div className="flex-1 flex items-center gap-2 py-3 pr-3 border-b border-black/[0.06] dark:border-white/[0.08] group-last:border-b-0 min-w-0">
                 <span className={`flex-1 text-[17px] truncate ${isSelected ? 'text-accent font-medium' : 'text-zinc-900 dark:text-white'}`}>
-                  {c.countryName}
+                  {nameOf(c)}
                 </span>
                 {c.isTippingDiscouraged ? (
                   <Ban className="w-4 h-4 text-ig-purple dark:text-[#b67be0]" aria-label={t('tippingNotCustomary')} />

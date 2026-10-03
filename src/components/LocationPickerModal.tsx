@@ -3,6 +3,7 @@ import { UserLocation } from '../types';
 import { COUNTRY_TIPPING_DATABASE } from '../data/tippingCulture';
 import { X, Search, Navigation, Check, Ban } from 'lucide-react';
 import { LanguageCode, getTranslation } from '../data/translations';
+import { localizedCountryName } from '../utils/countryName';
 
 interface LocationPickerModalProps {
   isOpen: boolean;
@@ -28,11 +29,12 @@ export const LocationPickerModal: React.FC<LocationPickerModalProps> = ({
 
   if (!isOpen) return null;
 
-  const countries = Object.values(COUNTRY_TIPPING_DATABASE).sort((a, b) => a.countryName.localeCompare(b.countryName));
+  const nameOf = (c: { countryCode: string; countryName: string }) => localizedCountryName(c.countryCode, currentLang, c.countryName);
+  const countries = Object.values(COUNTRY_TIPPING_DATABASE).sort((a, b) => nameOf(a).localeCompare(nameOf(b), currentLang));
+  const q = search.toLowerCase();
+  // Match the localized name, the English name or the country code
   const filtered = countries.filter(
-    (c) =>
-      c.countryName.toLowerCase().includes(search.toLowerCase()) ||
-      c.countryCode.toLowerCase().includes(search.toLowerCase())
+    (c) => nameOf(c).toLowerCase().includes(q) || c.countryName.toLowerCase().includes(q) || c.countryCode.toLowerCase().includes(q)
   );
 
   return (
@@ -89,7 +91,7 @@ export const LocationPickerModal: React.FC<LocationPickerModalProps> = ({
               <span className="flex-1 text-[17px] text-accent">{t('useMyLocation')}</span>
               {currentLocation.isGps && (
                 <span className="text-[15px] text-zinc-400 truncate max-w-[40%]">
-                  {currentLocation.city || currentLocation.countryName}
+                  {currentLocation.city || localizedCountryName(currentLocation.countryCode, currentLang, currentLocation.countryName)}
                 </span>
               )}
             </button>
@@ -111,7 +113,7 @@ export const LocationPickerModal: React.FC<LocationPickerModalProps> = ({
                 >
                   <span className="text-[24px] leading-none">{item.flag}</span>
                   <div className="flex-1 flex items-center gap-2 py-3 pr-4 border-b border-black/[0.06] dark:border-white/[0.08] group-last:border-b-0 min-w-0">
-                    <span className="flex-1 text-[17px] text-zinc-900 dark:text-white truncate">{item.countryName}</span>
+                    <span className="flex-1 text-[17px] text-zinc-900 dark:text-white truncate">{nameOf(item)}</span>
                     <span className="text-[15px] tabular-nums text-zinc-400 inline-flex items-center gap-1">
                       {item.isTippingDiscouraged ? <Ban className="w-4 h-4" /> : `${item.minPercent}–${item.highPercent}%`}
                     </span>

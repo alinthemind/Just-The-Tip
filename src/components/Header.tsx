@@ -6,6 +6,7 @@ import { MushroomTipLogo } from './InstagramIcon';
 import { LanguageSelector } from './LanguageSelector';
 import { IconButton, Segmented } from './ui';
 import { LanguageCode, getTranslation } from '../data/translations';
+import { localizedCountryName } from '../utils/countryName';
 
 interface HeaderProps {
   activeTab: ActiveTab;
@@ -49,6 +50,7 @@ export const Header: React.FC<HeaderProps> = ({
   onToggleTheme,
 }) => {
   const t = (key: string) => getTranslation(currentLang, key);
+  const countryLabel = localizedCountryName(userLocation.countryCode, currentLang, userLocation.countryName);
   const SourceIcon = SOURCE_ICON[userLocation.source || (userLocation.isGps ? 'gps' : 'default')];
 
   return (
@@ -80,7 +82,7 @@ export const Header: React.FC<HeaderProps> = ({
               type="button"
               onClick={onOpenLocationPicker}
               title={t('changeLocation')}
-              aria-label={`${t('changeLocation')}: ${userLocation.city || userLocation.countryName}`}
+              aria-label={`${t('changeLocation')}: ${userLocation.city || countryLabel}`}
               className="h-9 inline-flex items-center gap-1.5 pl-1.5 pr-2.5 rounded-full bg-[#767680]/12 dark:bg-[#767680]/24 hover:bg-[#767680]/20 active:scale-95 transition-all cursor-pointer max-w-[200px]"
             >
               <span className="w-6 h-6 rounded-full bg-white dark:bg-elevated flex items-center justify-center text-[15px] leading-none flex-shrink-0">
@@ -88,7 +90,7 @@ export const Header: React.FC<HeaderProps> = ({
               </span>
               {/* City name only where there's room; narrow phones show the flag and source icon */}
               <span className="hidden min-[440px]:inline text-[14px] font-medium text-zinc-900 dark:text-white truncate">
-                {userLocation.city || userLocation.countryName}
+                {userLocation.city || countryLabel}
               </span>
               <SourceIcon className="w-3.5 h-3.5 text-accent flex-shrink-0" />
             </button>
@@ -96,7 +98,7 @@ export const Header: React.FC<HeaderProps> = ({
             <LanguageSelector currentLang={currentLang} onSelectLang={onSelectLang} />
             <IconButton
               icon={theme === 'dark' ? Sun : Moon}
-              label={theme === 'dark' ? 'Light' : 'Dark'}
+              label={theme === 'dark' ? t('themeLight') : t('themeDark')}
               onClick={onToggleTheme}
             />
           </div>

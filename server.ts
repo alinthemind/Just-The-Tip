@@ -315,13 +315,12 @@ function buildFallbackReceiptData(
         description: `Generous tip for exceptional service in ${detectedCity || rule.countryName}.`,
       },
       localEtiquetteNotes: [
-        `Tip Basis: ${rule.currencySymbol}${tipBasisAmount.toFixed(2)} (strictly pre-tax and excluding ${totalSurcharges > 0 ? 'health surcharges & ' : ''}taxes).`,
         rule.restaurantAdvice,
         rule.counterCafeAdvice,
         rule.barAdvice,
         ...(rule.specialRules || []),
       ],
-      paymentAdvice: rule.taxiAdvice ? `Taxis: ${rule.taxiAdvice}` : undefined,
+      paymentAdvice: rule.taxiAdvice || undefined,
     },
     isFallback: true,
   };

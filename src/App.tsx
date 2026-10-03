@@ -70,7 +70,7 @@ function sampleToScanData(sample: SampleReceipt) {
       average: tier(rule.avgPercent, rule.avgLabel),
       high: tier(rule.highPercent, rule.highLabel),
       localEtiquetteNotes: [rule.restaurantAdvice, rule.counterCafeAdvice, rule.barAdvice, ...(rule.specialRules || [])],
-      paymentAdvice: rule.taxiAdvice ? `Taxis: ${rule.taxiAdvice}` : undefined,
+      paymentAdvice: rule.taxiAdvice || undefined,
     },
     isFallback: true,
   };
@@ -249,7 +249,7 @@ export default function App() {
           average: tier(tiers.avg, rule.avgLabel, SERVICE_ADVICE[service](rule)),
           high: tier(tiers.high, rule.highLabel),
           localEtiquetteNotes: [SERVICE_ADVICE[service](rule), ...(rule.specialRules || [])],
-          paymentAdvice: rule.taxiAdvice ? `Taxis: ${rule.taxiAdvice}` : undefined,
+          paymentAdvice: rule.taxiAdvice || undefined,
         },
       };
     });
@@ -287,13 +287,13 @@ export default function App() {
   ) => {
     setIsScanning(true);
     setScanError(null);
-    setScanStep('Reading receipt image...');
+    setScanStep(t('stepReading'));
 
     try {
       // If photo has EXIF GPS from phone, reverse geocode it as candidate photo location
       let photoLocationCandidate: any = null;
       if (photoGps && typeof photoGps.latitude === 'number' && typeof photoGps.longitude === 'number') {
-        setScanStep('Reading photo GPS location...');
+        setScanStep(t('stepPhotoGps'));
         try {
           const revRes = await fetch('/api/reverse-geocode', {
             method: 'POST',
@@ -312,12 +312,12 @@ export default function App() {
       let clientOcrResult = null;
       try {
         if (sampleInfo) {
-          setScanStep('Loading test receipt details...');
+          setScanStep(t('stepSample'));
           clientOcrResult = await runClientOcr(base64Image);
         } else {
-          setScanStep('Scanning text for restaurant name & city...');
-          clientOcrResult = await runClientOcr(base64Image, (_p, status) => {
-            setScanStep(status);
+          setScanStep(t('stepPreparing'));
+          clientOcrResult = await runClientOcr(base64Image, (_p, statusKey) => {
+            setScanStep(t(statusKey));
           });
         }
       } catch (ocrErr) {
@@ -338,7 +338,7 @@ export default function App() {
       const candidateLat = photoGps?.latitude ?? userLocation.latitude;
       const candidateLon = photoGps?.longitude ?? userLocation.longitude;
 
-      setScanStep('Calculating tip on pre-tax subtotal & local etiquette...');
+      setScanStep(t('stepCalculating'));
       let data: any;
       try {
         const response = await fetch('/api/scan-receipt', {
@@ -356,13 +356,14 @@ export default function App() {
         });
         if (!response.ok) {
           const errorData = await response.json().catch(() => ({}));
+          if (errorData.error) console.warn('Scan request failed:', errorData.error);
+          // Shown in the user's language; the server's English detail goes to the console
           throw new Error(
-            errorData.error ||
-              (response.status === 404
-                ? 'The receipt server is not reachable. Start the app with "npm run dev".'
-                : response.status === 413
-                ? 'This photo is too large. Please try a smaller image.'
-                : `Failed to scan receipt (error ${response.status}). Please try another photo.`)
+            response.status === 404
+              ? t('errUnreachable')
+              : response.status === 413
+              ? t('errPhotoTooLarge')
+              : t('errScanFailed').replace('{code}', String(response.status))
           );
         }
         data = await response.json();
@@ -372,7 +373,7 @@ export default function App() {
         if (!sample) {
           // fetch() rejects with a TypeError when the server can't be reached at all
           throw requestErr instanceof TypeError
-            ? new Error('Can’t reach the server. Check your connection, or that "npm run dev" is still running.')
+            ? new Error(t('errUnreachable'))
             : requestErr;
         }
         console.warn('Scan request failed, using built-in sample data:', requestErr);
@@ -574,7 +575,7 @@ export default function App() {
       setCurrentReceipt(newReceipt);
     } catch (err: any) {
       console.error('Scan error:', err);
-      setScanError(err.message || 'An error occurred while scanning the receipt.');
+      setScanError(err.message || t('errGeneric'));
     } finally {
       setIsScanning(false);
       setScanStep('');
@@ -643,7 +644,7 @@ export default function App() {
             <button
               type="button"
               onClick={() => setScanError(null)}
-              aria-label="Dismiss"
+              aria-label={t('dismiss')}
               className="w-7 h-7 rounded-full flex items-center justify-center hover:bg-[#ff3b30]/10 cursor-pointer"
             >
               <X className="w-4 h-4" />

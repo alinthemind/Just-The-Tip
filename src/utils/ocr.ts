@@ -135,6 +135,7 @@ function normalizeImageToCanvas(
 
 export async function runClientOcr(
   imageSource: string | File | Blob,
+  /** `status` is a translation key (stepPreparing, stepRecognizing, ...) */
   onProgress?: (progress: number, status: string) => void
 ): Promise<ParsedReceiptTextResult> {
   try {
@@ -143,26 +144,26 @@ export async function runClientOcr(
       typeof imageSource === 'string' &&
       (imageSource.includes('image/svg+xml') || imageSource.includes('<svg'))
     ) {
-      if (onProgress) onProgress(100, 'Reading receipt data...');
+      if (onProgress) onProgress(100, 'stepReading');
       const svgText = extractTextFromSvg(imageSource);
       return parseReceiptText(svgText);
     }
 
     // 2. Normalize and verify image is readable by browser before calling Tesseract worker
-    if (onProgress) onProgress(20, 'Preparing image for recognition...');
+    if (onProgress) onProgress(20, 'stepPreparing');
     const canvas = await normalizeImageToCanvas(imageSource);
     if (!canvas) {
       console.warn('Image could not be rendered to canvas, falling back to server parsing.');
       return parseReceiptText('');
     }
 
-    if (onProgress) onProgress(40, 'Initializing OCR engine...');
+    if (onProgress) onProgress(40, 'stepOcrInit');
     const worker = await getOcrWorker();
     if (!worker) {
       return parseReceiptText('');
     }
 
-    if (onProgress) onProgress(65, 'Recognizing receipt text & surcharges...');
+    if (onProgress) onProgress(65, 'stepRecognizing');
 
     // Run recognition with a 15-second safety timeout so it never hangs
     const ret: any = await Promise.race([
@@ -174,7 +175,7 @@ export async function runClientOcr(
 
     const text = ret?.data?.text || '';
 
-    if (onProgress) onProgress(90, 'Extracting pre-tax subtotal & location...');
+    if (onProgress) onProgress(90, 'stepExtracting');
     return parseReceiptText(text);
   } catch (error) {
     console.warn('Client OCR warning (falling back gracefully):', error);

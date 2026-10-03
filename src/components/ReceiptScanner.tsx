@@ -35,7 +35,7 @@ export const ReceiptScanner: React.FC<ReceiptScannerProps> = ({
 
   const processFile = async (file: File) => {
     if (!file.type.startsWith('image/') && !file.name.toLowerCase().match(/\.(jpe?g|png|webp|heic|heif)$/i)) {
-      alert('Please upload an image file (JPG, PNG, WEBP, or HEIC).');
+      alert(t('errNotImage'));
       return;
     }
     let photoGps: ExifGpsCoords | null = null;
@@ -120,6 +120,7 @@ export const ReceiptScanner: React.FC<ReceiptScannerProps> = ({
 
       <LiveCameraModal
         isOpen={isCameraModalOpen}
+        currentLang={currentLang}
         onClose={() => setIsCameraModalOpen(false)}
         onCapture={(dataUri) => {
           setIsCameraModalOpen(false);

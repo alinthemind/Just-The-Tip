@@ -18,7 +18,6 @@ import {
   ConciergeBell,
   ShieldAlert,
   Lightbulb,
-  CreditCard,
   Store,
   Wine,
   Coffee,
@@ -31,6 +30,7 @@ import { Card, Chip, IconTile, SectionCaption, Segmented } from './ui';
 import { getServiceTiers, ServiceType } from '../data/tippingCulture';
 import { TipPanel, TierKey } from './TipPanel';
 import { formatMoney, RoundMode } from '../utils/tipMath';
+import { localizedCountryName } from '../utils/countryName';
 
 interface TipResultsProps {
   receipt: ScannedReceiptData;
@@ -135,7 +135,9 @@ export const TipResults: React.FC<TipResultsProps> = ({
   const SourceIcon = SOURCE_ICON[receipt.locationSource || 'receipt'];
   const place = receipt.city
     ? `${receipt.city}${receipt.state && !receipt.city.includes(',') ? `, ${receipt.state}` : ''}`
-    : receipt.detectedCountry?.name;
+    : receipt.detectedCountry
+    ? localizedCountryName(receipt.detectedCountry.code, currentLang, receipt.detectedCountry.name)
+    : '';
 
   const editFields: Array<{ label: string; icon: LucideIcon; value: string; set: (v: string) => void; numeric?: boolean }> = [
     { label: '', icon: Store, value: editMerchant, set: setEditMerchant },
@@ -271,8 +273,10 @@ export const TipResults: React.FC<TipResultsProps> = ({
             ))}
             {tippingCulture.paymentAdvice && (
               <div className="flex items-start gap-2.5 text-[15px] leading-snug text-zinc-700 dark:text-zinc-300">
-                <CreditCard className="w-4 h-4 text-zinc-400 mt-0.5 flex-shrink-0" />
-                <span>{tippingCulture.paymentAdvice}</span>
+                <Car className="w-4 h-4 text-zinc-400 mt-0.5 flex-shrink-0" />
+                <span>
+                  <span className="font-semibold">{t('taxis')}:</span> {tippingCulture.paymentAdvice.replace(/^Taxis:\s*/, '')}
+                </span>
               </div>
             )}
           </div>
