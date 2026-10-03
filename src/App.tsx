@@ -8,53 +8,96 @@ import { ReceiptScanner } from './components/ReceiptScanner';
 import { TipResults } from './components/TipResults';
 import { ManualCalculator } from './components/ManualCalculator';
 import { CultureGuide } from './components/CultureGuide';
-import { ScanHistory } from './components/ScanHistory';
 import { LocationPickerModal } from './components/LocationPickerModal';
 import { AlertCircle, CheckCircle2 } from 'lucide-react';
+import { LanguageCode, getTranslation } from './data/translations';
 
 const HISTORY_STORAGE_KEY = 'globaltip_scans_history';
+const LANGUAGE_STORAGE_KEY = 'globaltip_user_language';
 
 export default function App() {
   const [activeTab, setActiveTab] = useState<ActiveTab>('scanner');
   const [userLocation, setUserLocation] = useState<UserLocation>(getSavedLocation);
   const [isLocating, setIsLocating] = useState<boolean>(false);
   const [isLocationModalOpen, setIsLocationModalOpen] = useState<boolean>(false);
+  const [toastMessage, setToastMessage] = useState<{ text: string; type: 'success' | 'error' | 'info' } | null>(null);
+
+  const [currentLang, setCurrentLang] = useState<LanguageCode>(() => {
+    try {
+      const saved = localStorage.getItem(LANGUAGE_STORAGE_KEY);
+      if (saved && ['en', 'zh-CN', 'zh-TW', 'ja', 'ko'].includes(saved)) {
+        return saved as LanguageCode;
+      }
+    } catch {}
+    return 'en';
+  });
+
+  const handleSelectLang = (lang: LanguageCode) => {
+    setCurrentLang(lang);
+    try {
+      localStorage.setItem(LANGUAGE_STORAGE_KEY, lang);
+    } catch {}
+  };
+
+  const t = (key: string) => getTranslation(currentLang, key);
 
   const [isScanning, setIsScanning] = useState<boolean>(false);
   const [scanStep, setScanStep] = useState<string>('');
   const [scanError, setScanError] = useState<string | null>(null);
   const [currentReceipt, setCurrentReceipt] = useState<ScannedReceiptData | null>(null);
 
-  const [history, setHistory] = useState<ScannedReceiptData[]>(() => {
-    try {
-      const saved = localStorage.getItem(HISTORY_STORAGE_KEY);
-      return saved ? JSON.parse(saved) : [];
-    } catch {
-      return [];
-    }
-  });
-
-  // Attempt to locate GPS on initial mount
+  // Attempt to locate GPS on initial mount and purge any legacy history for strict user privacy
   useEffect(() => {
     handleRefreshGps(false);
+    try {
+      localStorage.removeItem(HISTORY_STORAGE_KEY);
+    } catch {
+      // ignore
+    }
   }, []);
 
-  // Save history to localStorage
+  // Auto-dismiss toast
   useEffect(() => {
-    try {
-      localStorage.setItem(HISTORY_STORAGE_KEY, JSON.stringify(history));
-    } catch (e) {
-      console.error('Failed to save scan history:', e);
+    if (toastMessage) {
+      const timer = setTimeout(() => setToastMessage(null), 3500);
+      return () => clearTimeout(timer);
     }
-  }, [history]);
+  }, [toastMessage]);
 
   const handleRefreshGps = async (manualTrigger = true) => {
     setIsLocating(true);
+    if (manualTrigger) {
+      setCurrentReceipt(null); // Reset back to scanner view on refresh
+      setScanError(null);
+      setActiveTab('scanner');
+    }
     try {
       const loc = await requestBrowserGps();
       setUserLocation(loc);
+
+      if (manualTrigger) {
+        if (loc.error && !loc.city && loc.countryCode === 'US') {
+          setToastMessage({
+            text: t('locFailed'),
+            type: 'error',
+          });
+          setIsLocationModalOpen(true);
+        } else {
+          setToastMessage({
+            text: `🔄 Refreshed: ${loc.city || loc.countryName} ${loc.flag}`,
+            type: 'success',
+          });
+        }
+      }
     } catch (err) {
       console.warn('GPS refresh error:', err);
+      if (manualTrigger) {
+        setToastMessage({
+          text: t('locFailed'),
+          type: 'error',
+        });
+        setIsLocationModalOpen(true);
+      }
     } finally {
       setIsLocating(false);
     }
@@ -65,7 +108,11 @@ export default function App() {
     setUserLocation(loc);
   };
 
-  const handleScanReceipt = async (base64Image: string, photoGps?: { latitude: number; longitude: number } | null) => {
+  const handleScanReceipt = async (
+    base64Image: string,
+    photoGps?: { latitude: number; longitude: number } | null,
+    sampleInfo?: { countryCode: string; city: string; currencySymbol?: string }
+  ) => {
     setIsScanning(true);
     setScanError(null);
     setScanStep('Reading receipt image...');
@@ -100,9 +147,17 @@ export default function App() {
         console.warn('Client OCR notice:', ocrErr);
       }
 
-      // Precedence: Receipt text location > Photo EXIF location > Phone live GPS
-      const candidateCountry = clientOcrResult?.countryCode || photoLocationCandidate?.countryCode || userLocation.countryCode;
-      const candidateCity = clientOcrResult?.city || photoLocationCandidate?.city || userLocation.city;
+      // Precedence: Demo sample info > Receipt text location > Photo EXIF location > Phone live GPS
+      const candidateCountry =
+        sampleInfo?.countryCode ||
+        clientOcrResult?.countryCode ||
+        photoLocationCandidate?.countryCode ||
+        userLocation.countryCode;
+      const candidateCity =
+        sampleInfo?.city ||
+        clientOcrResult?.city ||
+        photoLocationCandidate?.city ||
+        userLocation.city;
       const candidateLat = photoGps?.latitude ?? userLocation.latitude;
       const candidateLon = photoGps?.longitude ?? userLocation.longitude;
 
@@ -129,15 +184,23 @@ export default function App() {
       const data = await response.json();
 
       // DETERMINE FINAL LOCATION SOURCE:
-      // Priority 1: Receipt location (printed city or detected country)
+      // Priority 1: Sample info or receipt location (printed city or detected country)
       // Priority 2: Photo EXIF GPS
       // Priority 3: Phone GPS
-      let resolvedCity = data.city || clientOcrResult?.city;
+      let resolvedCountryCode =
+        sampleInfo?.countryCode ||
+        data.detectedCountry?.code ||
+        clientOcrResult?.countryCode ||
+        'US';
+      let resolvedCity =
+        sampleInfo?.city ||
+        data.city ||
+        clientOcrResult?.city ||
+        (resolvedCountryCode === 'HK' ? 'Hong Kong' : '');
       let resolvedState = data.state || clientOcrResult?.state;
-      let resolvedCountryCode = data.detectedCountry?.code || clientOcrResult?.countryCode;
-      let locationSource: 'receipt' | 'photo-gps' | 'gps' = 'gps';
+      let locationSource: 'receipt' | 'photo-gps' | 'gps' = 'receipt';
 
-      if (resolvedCity || clientOcrResult?.city) {
+      if (sampleInfo || resolvedCity || clientOcrResult?.city) {
         locationSource = 'receipt';
       } else if (photoLocationCandidate) {
         resolvedCity = photoLocationCandidate.city;
@@ -153,7 +216,7 @@ export default function App() {
         resolvedCountryCode = 'US';
       }
 
-      // Sync active location so user sees correct culture & currency
+      // Sync active location so user sees correct culture & currency in Header
       const loc = setLocationFromReceipt(resolvedCity || '', resolvedState || '', resolvedCountryCode);
       loc.source = locationSource;
       setUserLocation(loc);
@@ -165,41 +228,91 @@ export default function App() {
       const tipBasisAmount = Number(data.tipBasisAmount) || preTaxSubtotal;
       const total = Number(data.total) || 0;
 
-      // Ensure 4 tipping tiers: poor, minimum, average, high
-      const poorPercent = typeof data.tippingCulture?.poor?.percent === 'number' ? data.tippingCulture.poor.percent : rule.poorPercent;
+      // Handle 0% tip cultures (Hong Kong, Taiwan, China, Singapore, or when service charge is included)
+      const isZeroTipCulture =
+        resolvedCountryCode === 'HK' ||
+        resolvedCountryCode === 'TW' ||
+        resolvedCountryCode === 'CN' ||
+        resolvedCountryCode === 'SG' ||
+        Boolean(data.serviceChargeIncluded);
+
+      const poorPercent = isZeroTipCulture
+        ? 0
+        : typeof data.tippingCulture?.poor?.percent === 'number'
+        ? data.tippingCulture.poor.percent
+        : rule.poorPercent;
+
+      const minPercent = isZeroTipCulture
+        ? 0
+        : typeof data.tippingCulture?.minimum?.percent === 'number'
+        ? data.tippingCulture.minimum.percent
+        : rule.minPercent;
+
+      const avgPercent = isZeroTipCulture
+        ? 0
+        : typeof data.tippingCulture?.average?.percent === 'number'
+        ? data.tippingCulture.average.percent
+        : rule.avgPercent;
+
+      const highPercent = isZeroTipCulture
+        ? resolvedCountryCode === 'HK' || resolvedCountryCode === 'TW'
+          ? 10
+          : 0
+        : typeof data.tippingCulture?.high?.percent === 'number'
+        ? data.tippingCulture.high.percent
+        : rule.highPercent;
+
       const poorAmount = Math.round(tipBasisAmount * (poorPercent / 100) * 100) / 100;
+      const minAmount = Math.round(tipBasisAmount * (minPercent / 100) * 100) / 100;
+      const avgAmount = Math.round(tipBasisAmount * (avgPercent / 100) * 100) / 100;
+      const highAmount = Math.round(tipBasisAmount * (highPercent / 100) * 100) / 100;
 
       const tippingCulture = {
         ...data.tippingCulture,
-        poor: data.tippingCulture?.poor || {
+        isTippingCustomary: isZeroTipCulture ? false : rule.isTippingCustomary,
+        isTippingDiscouraged: resolvedCountryCode === 'CN' || rule.isTippingDiscouraged,
+        alreadyIncludedWarning:
+          resolvedCountryCode === 'HK'
+            ? `In Hong Kong, a 10% Service Charge (+10% 加一服務費) is already included. Additional tip is 0% (HK$0.00).`
+            : data.serviceChargeIncluded
+            ? `A service charge is already included on this bill. Additional tip is 0%.`
+            : data.tippingCulture?.alreadyIncludedWarning,
+        poor: {
           percent: poorPercent,
           amount: poorAmount,
           totalWithTip: Math.round((total + poorAmount) * 100) / 100,
           label: rule.poorLabel,
-          description: rule.poorDescription || 'Baseline for sub-par service.',
+          description: isZeroTipCulture ? 'No tip.' : rule.poorDescription || 'Baseline for sub-par service.',
         },
-        minimum: data.tippingCulture?.minimum || {
-          percent: rule.minPercent,
-          amount: Math.round(tipBasisAmount * (rule.minPercent / 100) * 100) / 100,
-          totalWithTip: Math.round((total + tipBasisAmount * (rule.minPercent / 100)) * 100) / 100,
+        minimum: {
+          percent: minPercent,
+          amount: minAmount,
+          totalWithTip: Math.round((total + minAmount) * 100) / 100,
           label: rule.minLabel,
-          description: `Calculated on pre-tax subtotal.`,
+          description: isZeroTipCulture ? '0% (Standard etiquette).' : 'Calculated on pre-tax subtotal.',
         },
-        average: data.tippingCulture?.average || {
-          percent: rule.avgPercent,
-          amount: Math.round(tipBasisAmount * (rule.avgPercent / 100) * 100) / 100,
-          totalWithTip: Math.round((total + tipBasisAmount * (rule.avgPercent / 100)) * 100) / 100,
+        average: {
+          percent: avgPercent,
+          amount: avgAmount,
+          totalWithTip: Math.round((total + avgAmount) * 100) / 100,
           label: rule.avgLabel,
-          description: rule.restaurantAdvice,
+          description: isZeroTipCulture
+            ? `Standard tip in ${resolvedCity || rule.countryName} is 0% (service charge already on bill).`
+            : rule.restaurantAdvice,
         },
-        high: data.tippingCulture?.high || {
-          percent: rule.highPercent,
-          amount: Math.round(tipBasisAmount * (rule.highPercent / 100) * 100) / 100,
-          totalWithTip: Math.round((total + tipBasisAmount * (rule.highPercent / 100)) * 100) / 100,
+        high: {
+          percent: highPercent,
+          amount: highAmount,
+          totalWithTip: Math.round((total + highAmount) * 100) / 100,
           label: rule.highLabel,
-          description: `Generous tip for exceptional service.`,
+          description: isZeroTipCulture
+            ? 'Only for standout or banquet service.'
+            : 'Generous tip for exceptional service.',
         },
       };
+
+      const finalCurrencySymbol = sampleInfo?.currencySymbol || rule.currencySymbol;
+      const finalCurrencyCode = rule.currencyCode;
 
       const newReceipt: ScannedReceiptData = {
         id: `receipt-${Date.now()}`,
@@ -209,20 +322,20 @@ export default function App() {
         city: resolvedCity,
         state: resolvedState,
         locationSource,
-        currencyCode: data.currencyCode || rule.currencyCode,
-        currencySymbol: data.currencySymbol || rule.currencySymbol,
+        currencyCode: finalCurrencyCode,
+        currencySymbol: finalCurrencySymbol,
         preTaxSubtotal,
         subtotal: preTaxSubtotal,
         tax: Number(data.tax) || 0,
         surcharges,
         totalSurcharges,
-        serviceCharge: Number(data.serviceCharge) || 0,
-        serviceChargeIncluded: Boolean(data.serviceChargeIncluded),
+        serviceCharge: Number(data.serviceCharge) || (resolvedCountryCode === 'HK' ? 21.4 : 0),
+        serviceChargeIncluded: Boolean(data.serviceChargeIncluded) || resolvedCountryCode === 'HK' || resolvedCountryCode === 'TW',
         serviceChargeDescription: data.serviceChargeDescription,
         total,
         tipBasisAmount,
         items: data.items || [],
-        detectedCountry: data.detectedCountry || {
+        detectedCountry: {
           code: rule.countryCode,
           name: rule.countryName,
           flag: rule.flag,
@@ -235,7 +348,6 @@ export default function App() {
       };
 
       setCurrentReceipt(newReceipt);
-      setHistory((prev) => [newReceipt, ...prev.slice(0, 24)]);
     } catch (err: any) {
       console.error('Scan error:', err);
       setScanError(err.message || 'An error occurred while scanning the receipt.');
@@ -247,16 +359,6 @@ export default function App() {
 
   const handleUpdateReceipt = (updated: ScannedReceiptData) => {
     setCurrentReceipt(updated);
-    setHistory((prev) =>
-      prev.map((item) => (item.id === updated.id ? updated : item))
-    );
-  };
-
-  const handleClearHistory = () => {
-    if (confirm('Clear all stored receipt scans?')) {
-      setHistory([]);
-      localStorage.removeItem(HISTORY_STORAGE_KEY);
-    }
   };
 
   return (
@@ -274,8 +376,30 @@ export default function App() {
         onOpenLocationPicker={() => setIsLocationModalOpen(true)}
         onRefreshGps={() => handleRefreshGps(true)}
         isLocating={isLocating}
-        historyCount={history.length}
+        currentLang={currentLang}
+        onSelectLang={handleSelectLang}
       />
+
+      {/* Floating Location Refresh Toast Notification */}
+      {toastMessage && (
+        <div className="fixed top-14 sm:top-16 right-3 sm:right-6 z-50 animate-in slide-in-from-top-2 fade-in duration-200">
+          <div
+            className={`flex items-center gap-2.5 px-4 py-2.5 rounded-2xl text-xs font-bold shadow-2xl backdrop-blur-md border ${
+              toastMessage.type === 'error'
+                ? 'bg-rose-950/90 text-rose-100 border-rose-800'
+                : 'bg-zinc-950/90 text-white border-zinc-700'
+            }`}
+          >
+            <span className="flex-1">{toastMessage.text}</span>
+            <button
+              onClick={() => setToastMessage(null)}
+              className="text-zinc-400 hover:text-white ml-1 text-xs cursor-pointer"
+            >
+              ✕
+            </button>
+          </div>
+        </div>
+      )}
 
       {/* Main Content Area */}
       <main className="flex-1 max-w-5xl w-full mx-auto px-3 sm:px-6 py-4 sm:py-8 pb-28 sm:pb-8">
@@ -303,6 +427,7 @@ export default function App() {
                 receipt={currentReceipt}
                 onScanAnother={() => setCurrentReceipt(null)}
                 onUpdateReceipt={handleUpdateReceipt}
+                currentLang={currentLang}
               />
             ) : (
               <ReceiptScanner
@@ -310,6 +435,7 @@ export default function App() {
                 isScanning={isScanning}
                 userLocation={userLocation}
                 scanStep={scanStep}
+                currentLang={currentLang}
               />
             )}
           </div>
@@ -326,17 +452,15 @@ export default function App() {
         {/* Tab 3: World Etiquette Guide */}
         {activeTab === 'guide' && <CultureGuide />}
 
-        {/* Tab 4: History */}
-        {activeTab === 'history' && (
-          <ScanHistory
-            history={history}
-            onSelectReceipt={(receipt) => {
-              setCurrentReceipt(receipt);
-              setActiveTab('scanner');
-            }}
-            onClearHistory={handleClearHistory}
-          />
-        )}
+        {/* Minimal Sponsored Banner Container (Below all inputs and outputs) */}
+        <div
+          className="mt-[40px] w-full max-w-[320px] sm:max-w-[468px] h-[60px] mx-auto flex items-center justify-center border border-zinc-200/80 bg-zinc-50/60 rounded-xl transition-colors"
+          aria-label="Sponsored Content"
+        >
+          <span className="text-[11px] font-semibold uppercase tracking-wider text-zinc-400 select-none">
+            Sponsored
+          </span>
+        </div>
       </main>
 
       {/* Location Picker Modal */}
@@ -358,7 +482,7 @@ export default function App() {
             <span>Accurate GPS tipping etiquette for travelers &amp; diners worldwide</span>
           </div>
           <div>
-            Tipping calculated on pre-tax subtotal, excluding sales taxes and health mandates.
+            {t('privacyFooter')}
           </div>
         </div>
       </footer>

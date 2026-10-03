@@ -77,8 +77,8 @@ export interface UserLocation {
   currencyCode: string;
   currencySymbol: string;
   isGps: boolean;
-  source?: 'receipt' | 'photo-gps' | 'gps' | 'default' | 'manual';
+  source?: 'receipt' | 'photo-gps' | 'gps' | 'ip' | 'default' | 'manual';
   error?: string;
 }
 
-export type ActiveTab = 'scanner' | 'manual' | 'guide' | 'history';
+export type ActiveTab = 'scanner' | 'manual' | 'guide';

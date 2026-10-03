@@ -1,15 +1,21 @@
 import React, { useRef, useState } from 'react';
-import { Camera, Upload, Sparkles, FileText, ArrowRight, ShieldCheck, MapPin } from 'lucide-react';
+import { Camera, Upload, Sparkles, FileText, ArrowRight, ShieldCheck, MapPin, Lock } from 'lucide-react';
 import { SAMPLE_RECEIPTS, SampleReceipt } from '../data/sampleReceipts';
 import { LiveCameraModal } from './LiveCameraModal';
 import { UserLocation } from '../types';
 import { extractExifGps, ExifGpsCoords } from '../utils/exif';
+import { LanguageCode, getTranslation } from '../data/translations';
 
 interface ReceiptScannerProps {
-  onScan: (base64Image: string, photoGps?: ExifGpsCoords | null) => Promise<void>;
+  onScan: (
+    base64Image: string,
+    photoGps?: ExifGpsCoords | null,
+    sampleInfo?: { countryCode: string; city: string; currencySymbol: string }
+  ) => Promise<void>;
   isScanning: boolean;
   userLocation: UserLocation;
   scanStep: string;
+  currentLang?: LanguageCode;
 }
 
 export const ReceiptScanner: React.FC<ReceiptScannerProps> = ({
@@ -17,7 +23,9 @@ export const ReceiptScanner: React.FC<ReceiptScannerProps> = ({
   isScanning,
   userLocation,
   scanStep,
+  currentLang = 'en',
 }) => {
+  const t = (key: string) => getTranslation(currentLang, key);
   const [isCameraModalOpen, setIsCameraModalOpen] = useState(false);
   const [dragActive, setDragActive] = useState(false);
   const [previewImage, setPreviewImage] = useState<string | null>(null);
@@ -70,7 +78,11 @@ export const ReceiptScanner: React.FC<ReceiptScannerProps> = ({
 
   const handleSampleSelect = (sample: SampleReceipt) => {
     setPreviewImage(sample.svgDataUri);
-    onScan(sample.svgDataUri, null);
+    onScan(sample.svgDataUri, null, {
+      countryCode: sample.countryCode,
+      city: sample.city,
+      currencySymbol: sample.currencySymbol,
+    });
   };
 
   return (
@@ -176,7 +188,7 @@ export const ReceiptScanner: React.FC<ReceiptScannerProps> = ({
                   className="w-full sm:w-auto flex-1 flex items-center justify-center gap-2 px-5 py-3 rounded-2xl ig-gradient hover:opacity-95 active:scale-95 text-white font-bold text-sm shadow-md shadow-pink-500/25 transition-all cursor-pointer min-h-[46px]"
                 >
                   <Camera className="w-4 h-4" />
-                  Take Receipt Photo
+                  {t('takePhoto')}
                 </button>
 
                 <button
@@ -185,17 +197,22 @@ export const ReceiptScanner: React.FC<ReceiptScannerProps> = ({
                   className="w-full sm:w-auto flex-1 flex items-center justify-center gap-2 px-5 py-3 rounded-2xl bg-white hover:bg-zinc-50 active:scale-95 border border-zinc-200 text-zinc-900 font-bold text-sm shadow-xs transition-all cursor-pointer min-h-[46px]"
                 >
                   <Upload className="w-4 h-4 text-zinc-600" />
-                  Upload Photo
+                  {t('uploadPhoto')}
                 </button>
               </div>
 
-              <div className="flex items-center justify-center gap-2.5 text-[11px] text-zinc-500 mt-3 font-medium">
+              <div className="flex flex-wrap items-center justify-center gap-2 text-[11px] text-zinc-500 mt-3 font-medium">
                 <span className="flex items-center gap-1">
                   <ShieldCheck className="w-3.5 h-3.5 text-emerald-600" />
-                  Strict Pre-Tax Basis
+                  {t('preTaxBasis')}
                 </span>
                 <span>•</span>
-                <span>Receipt Location &amp; Photo GPS First</span>
+                <span className="flex items-center gap-1">
+                  <Lock className="w-3.5 h-3.5 text-pink-600" />
+                  {t('zeroHistory')}
+                </span>
+                <span>•</span>
+                <span>{t('receiptGpsFirst')}</span>
               </div>
             </div>
           </div>
@@ -207,13 +224,13 @@ export const ReceiptScanner: React.FC<ReceiptScannerProps> = ({
         <div className="flex items-center justify-between mb-2.5">
           <div className="flex items-center gap-2">
             <span className="text-xs sm:text-sm font-black text-zinc-900">
-              1-Tap Test Receipts
+              {t('demoReceiptsTitle')}
             </span>
             <span className="text-[9px] font-extrabold ig-gradient-text bg-pink-50 border border-pink-200/70 px-2 py-0.5 rounded-full uppercase tracking-wider">
-              Quick Demo
+              {t('quickDemo')}
             </span>
           </div>
-          <span className="text-[11px] text-zinc-400 hidden sm:block">Click any sample to test</span>
+          <span className="text-[11px] text-zinc-400 hidden sm:block">{t('clickSampleToTest')}</span>
         </div>
 
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-2">
@@ -245,7 +262,7 @@ export const ReceiptScanner: React.FC<ReceiptScannerProps> = ({
               </div>
 
               <div className="mt-2.5 pt-2 border-t border-zinc-200/60 flex items-center justify-between text-[10px] font-bold ig-gradient-text">
-                <span>Test Scan</span>
+                <span>{t('testScan')}</span>
                 <ArrowRight className="w-3 h-3 text-[#E1306C] group-hover:translate-x-0.5 transition-transform" />
               </div>
             </button>

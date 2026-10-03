@@ -1,13 +1,51 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { COUNTRY_TIPPING_DATABASE, TippingCultureRule } from '../data/tippingCulture';
-import { Search, Globe2, Utensils, Wine, Car, Bike, Coffee, Info, Sparkles } from 'lucide-react';
+import { Search, Globe2, Utensils, Wine, Car, Coffee, Info, MapPin } from 'lucide-react';
+
+type RegionKey = 'all' | 'americas' | 'europe' | 'asia' | 'middle-east';
+
+const REGION_CONFIG: { id: RegionKey; label: string; icon: string }[] = [
+  { id: 'all', label: 'All', icon: '🌐' },
+  { id: 'americas', label: 'Americas', icon: '🌎' },
+  { id: 'europe', label: 'Europe', icon: '🌍' },
+  { id: 'asia', label: 'Asia & Pacific', icon: '🌏' },
+  { id: 'middle-east', label: 'Middle East', icon: '🕌' },
+];
+
+const COUNTRY_REGION_MAP: Record<string, RegionKey> = {
+  US: 'americas',
+  CA: 'americas',
+  MX: 'americas',
+  BR: 'americas',
+  GB: 'europe',
+  FR: 'europe',
+  IT: 'europe',
+  DE: 'europe',
+  ES: 'europe',
+  CH: 'europe',
+  NL: 'europe',
+  GR: 'europe',
+  IE: 'europe',
+  JP: 'asia',
+  KR: 'asia',
+  CN: 'asia',
+  HK: 'asia',
+  TW: 'asia',
+  SG: 'asia',
+  TH: 'asia',
+  IN: 'asia',
+  AU: 'asia',
+  NZ: 'asia',
+  AE: 'middle-east',
+};
 
 export const CultureGuide: React.FC = () => {
   const [search, setSearch] = useState('');
-  const [selectedCountry, setSelectedCountry] = useState<TippingCultureRule>(COUNTRY_TIPPING_DATABASE['US']);
-  const [filterRegion, setFilterRegion] = useState<'all' | 'americas' | 'europe' | 'asia'>('all');
+  const [filterRegion, setFilterRegion] = useState<RegionKey>('all');
 
-  const allCountries = Object.values(COUNTRY_TIPPING_DATABASE);
+  const allCountries = Object.values(COUNTRY_TIPPING_DATABASE).sort((a, b) =>
+    a.countryName.localeCompare(b.countryName)
+  );
 
   const filteredCountries = allCountries.filter((c) => {
     const matchSearch =
@@ -16,17 +54,39 @@ export const CultureGuide: React.FC = () => {
 
     if (!matchSearch) return false;
 
-    if (filterRegion === 'americas') {
-      return ['US', 'CA', 'MX', 'BR'].includes(c.countryCode);
-    }
-    if (filterRegion === 'europe') {
-      return ['GB', 'FR', 'IT', 'DE', 'ES', 'CH', 'NL', 'GR', 'IE'].includes(c.countryCode);
-    }
-    if (filterRegion === 'asia') {
-      return ['JP', 'KR', 'CN', 'HK', 'AU', 'NZ', 'TH', 'IN', 'SG', 'AE'].includes(c.countryCode);
+    if (filterRegion !== 'all') {
+      return COUNTRY_REGION_MAP[c.countryCode] === filterRegion;
     }
     return true;
   });
+
+  const [selectedCountry, setSelectedCountry] = useState<TippingCultureRule>(
+    filteredCountries[0] || COUNTRY_TIPPING_DATABASE['US']
+  );
+
+  // Sync selectedCountry whenever region filter or search changes
+  useEffect(() => {
+    if (
+      filteredCountries.length > 0 &&
+      !filteredCountries.some((c) => c.countryCode === selectedCountry?.countryCode)
+    ) {
+      setSelectedCountry(filteredCountries[0]);
+    }
+  }, [filterRegion, search]);
+
+  const handleSelectRegion = (reg: RegionKey) => {
+    setFilterRegion(reg);
+    const matches = allCountries.filter((c) => {
+      const matchSearch =
+        c.countryName.toLowerCase().includes(search.toLowerCase()) ||
+        c.countryCode.toLowerCase().includes(search.toLowerCase());
+      if (!matchSearch) return false;
+      return reg === 'all' || COUNTRY_REGION_MAP[c.countryCode] === reg;
+    });
+    if (matches.length > 0) {
+      setSelectedCountry(matches[0]);
+    }
+  };
 
   return (
     <div className="space-y-4 sm:space-y-6 max-w-5xl mx-auto pb-20 sm:pb-8">
@@ -61,19 +121,34 @@ export const CultureGuide: React.FC = () => {
           </div>
 
           <div className="flex gap-1 bg-zinc-100 p-1 rounded-xl overflow-x-auto no-scrollbar">
-            {(['all', 'americas', 'europe', 'asia'] as const).map((reg) => (
-              <button
-                key={reg}
-                onClick={() => setFilterRegion(reg)}
-                className={`px-3 py-1.5 rounded-lg text-xs font-bold capitalize transition-all whitespace-nowrap ${
-                  filterRegion === reg
-                    ? 'ig-gradient text-white shadow-xs'
-                    : 'text-zinc-600 hover:text-zinc-900'
-                }`}
-              >
-                {reg === 'all' ? 'All' : reg}
-              </button>
-            ))}
+            {REGION_CONFIG.map((reg) => {
+              const count = allCountries.filter(
+                (c) => reg.id === 'all' || COUNTRY_REGION_MAP[c.countryCode] === reg.id
+              ).length;
+              return (
+                <button
+                  key={reg.id}
+                  onClick={() => handleSelectRegion(reg.id)}
+                  className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all whitespace-nowrap cursor-pointer flex items-center gap-1.5 ${
+                    filterRegion === reg.id
+                      ? 'ig-gradient text-white shadow-xs'
+                      : 'text-zinc-600 hover:text-zinc-900'
+                  }`}
+                >
+                  <span>{reg.icon}</span>
+                  <span>{reg.label}</span>
+                  <span
+                    className={`text-[10px] px-1.5 py-0.2 rounded-full font-mono ${
+                      filterRegion === reg.id
+                        ? 'bg-white/20 text-white'
+                        : 'bg-zinc-200/80 text-zinc-600'
+                    }`}
+                  >
+                    {count}
+                  </span>
+                </button>
+              );
+            })}
           </div>
         </div>
 
@@ -182,6 +257,14 @@ export const CultureGuide: React.FC = () => {
         )}
       </div>
 
+      {/* Grid of Filtered Countries Header */}
+      <div className="flex items-center justify-between px-1">
+        <span className="text-xs font-bold text-zinc-500 uppercase tracking-wider">
+          Listing {filteredCountries.length} {filteredCountries.length === 1 ? 'Country' : 'Countries'}{' '}
+          {filterRegion !== 'all' ? `in ${REGION_CONFIG.find((r) => r.id === filterRegion)?.label}` : ''}
+        </span>
+      </div>
+
       {/* Grid of All Countries */}
       <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-2.5">
         {filteredCountries.map((c) => {
@@ -229,3 +312,4 @@ export const CultureGuide: React.FC = () => {
     </div>
   );
 };
+

@@ -571,6 +571,33 @@ export const COUNTRY_TIPPING_DATABASE: Record<string, TippingCultureRule> = {
       'Leaving small coins from your change is the authentic local custom.'
     ]
   },
+  TW: {
+    countryCode: 'TW',
+    countryName: 'Taiwan',
+    flag: '🇹🇼',
+    currencyCode: 'TWD',
+    currencySymbol: 'NT$',
+    poorPercent: 0,
+    minPercent: 0,
+    avgPercent: 0,
+    highPercent: 10,
+    isTippingCustomary: false,
+    isTippingDiscouraged: false,
+    serviceChargeUsuallyIncluded: true,
+    tippingBasis: 'round_up',
+    poorLabel: 'Poor (0% / No Tip)',
+    minLabel: 'Standard (0% / Service Included)',
+    avgLabel: 'Customary (0% / 10% on bill)',
+    highLabel: 'Generous (5-10%)',
+    poorDescription: 'No tip. A 10% service charge is already on the check in sit-down dining.',
+    cultureSummary: 'Tipping is not customary in Taiwan. Casual eateries and night markets do not accept tips. Formal restaurants usually add a 10% service fee (服務費) to the bill.',
+    restaurantAdvice: 'If the 10% service charge is included, you do not need to tip anything extra. In local noodle shops and night markets, paying the exact amount is the norm.',
+    counterCafeAdvice: 'No tipping.',
+    barAdvice: 'Check if 10% service charge is included; otherwise no tip expected.',
+    taxiAdvice: 'Round up to nearest NT$5 or NT$10.',
+    deliveryAdvice: 'NT$20 to NT$50 in-app.',
+    specialRules: ['Do not tip in night markets, food courts, or street stalls.']
+  },
   IE: {
     countryCode: 'IE',
     countryName: 'Ireland',

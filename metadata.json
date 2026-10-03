@@ -1,6 +1,11 @@
 {
   "name": "Just the Tip",
   "description": "Calculates minimum, average, and high tips based on receipt photos and your current GPS location with country-accurate tipping etiquette.",
-  "requestFramePermissions": ["camera", "geolocation"],
-  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+  "requestFramePermissions": [
+    "camera",
+    "geolocation"
+  ],
+  "majorCapabilities": [
+    "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"
+  ]
 }

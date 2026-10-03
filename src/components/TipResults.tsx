@@ -12,6 +12,7 @@ import {
   Edit2,
   Check,
   Coins,
+  Banknote,
   CreditCard,
   UtensilsCrossed,
   ShieldCheck,
@@ -19,23 +20,28 @@ import {
   Flame,
   ArrowRight
 } from 'lucide-react';
+import { LanguageCode, getTranslation } from '../data/translations';
 
 interface TipResultsProps {
   receipt: ScannedReceiptData;
   onScanAnother: () => void;
   onUpdateReceipt: (updated: ScannedReceiptData) => void;
+  currentLang?: LanguageCode;
 }
 
 export const TipResults: React.FC<TipResultsProps> = ({
   receipt,
   onScanAnother,
   onUpdateReceipt,
+  currentLang = 'en',
 }) => {
+  const t = (key: string) => getTranslation(currentLang, key);
   const { tippingCulture } = receipt;
   // Selected tip tier: 'poor' | 'minimum' | 'average' | 'high' | 'custom'
   const [selectedTier, setSelectedTier] = useState<'poor' | 'minimum' | 'average' | 'high' | 'custom'>('average');
   const [customPercent, setCustomPercent] = useState<number>(tippingCulture.average.percent);
-  const [roundUpTotal, setRoundUpTotal] = useState(false);
+  // Rounding mode: 'none' (exact cents) | 'total' (round total bill to whole $) | 'tip' (round tip amount to whole $)
+  const [roundMode, setRoundMode] = useState<'none' | 'total' | 'tip'>('none');
   const [showItemDetails, setShowItemDetails] = useState(false);
   const [isEditingReceipt, setIsEditingReceipt] = useState(false);
 
@@ -56,26 +62,72 @@ export const TipResults: React.FC<TipResultsProps> = ({
   // CRITICAL: Tip is calculated STRICTLY on the pre-tax food & beverage subtotal (excluding tax, excluding SF Health Mandates and surcharges)
   const tipBasisAmount = subtotalVal;
 
-  // Active tip percentage and amounts
-  const getActiveTipDetails = () => {
-    let pct = 0;
-    if (selectedTier === 'poor') pct = tippingCulture.poor?.percent ?? 0;
-    else if (selectedTier === 'minimum') pct = tippingCulture.minimum.percent;
-    else if (selectedTier === 'average') pct = tippingCulture.average.percent;
-    else if (selectedTier === 'high') pct = tippingCulture.high.percent;
-    else pct = customPercent;
+  // Dynamic helper to compute exact tip, grand total, and rounded whole numbers for any tier
+  const computeTierValues = (pct: number) => {
+    const rawTip = Math.round(tipBasisAmount * (pct / 100) * 100) / 100;
+    const rawGrandTotal = Math.round((totalVal + rawTip) * 100) / 100;
 
-    let tipAmount = Math.round(tipBasisAmount * (pct / 100) * 100) / 100;
-    let grandTotal = Math.round((totalVal + tipAmount) * 100) / 100;
-
-    if (roundUpTotal && grandTotal > 0) {
-      const rounded = Math.ceil(grandTotal);
-      tipAmount = Math.round((rounded - totalVal) * 100) / 100;
-      grandTotal = rounded;
-      pct = Math.round((tipAmount / (tipBasisAmount || 1)) * 1000) / 10;
+    if (roundMode === 'none' || rawGrandTotal <= 0) {
+      return {
+        percent: pct,
+        tipAmount: rawTip,
+        grandTotal: rawGrandTotal,
+        isRounded: false,
+        roundType: 'none' as const,
+      };
     }
 
-    return { percent: pct, tipAmount, grandTotal };
+    if (roundMode === 'total') {
+      // Round up the grand total bill to the nearest whole integer (e.g. $89.50 -> $90.00)
+      const roundedTotal = Math.ceil(rawGrandTotal);
+      const adjustedTip = Math.max(0, Math.round((roundedTotal - totalVal) * 100) / 100);
+      const effectivePct = tipBasisAmount > 0 ? Math.round((adjustedTip / tipBasisAmount) * 1000) / 10 : 0;
+
+      return {
+        percent: effectivePct,
+        tipAmount: adjustedTip,
+        grandTotal: roundedTotal,
+        isRounded: roundedTotal !== rawGrandTotal,
+        roundType: 'total' as const,
+      };
+    }
+
+    // roundMode === 'tip': Round tip amount itself to whole dollar (e.g. $12.24 -> $12.00 or $13.00)
+    let roundedTip = Math.round(rawTip);
+    if (pct > 0 && rawTip > 0 && roundedTip === 0) {
+      roundedTip = 1;
+    }
+    if (pct === 0) {
+      roundedTip = 0;
+    }
+    const finalTotal = Math.round((totalVal + roundedTip) * 100) / 100;
+    const effectivePct = tipBasisAmount > 0 ? Math.round((roundedTip / tipBasisAmount) * 1000) / 10 : 0;
+
+    return {
+      percent: effectivePct,
+      tipAmount: roundedTip,
+      grandTotal: finalTotal,
+      isRounded: roundedTip !== rawTip,
+      roundType: 'tip' as const,
+    };
+  };
+
+  // Active tip details for the currently selected tier
+  const getActiveTipDetails = () => {
+    let pct = 0;
+    if (selectedTier === 'poor') {
+      pct = tippingCulture.poor?.percent ?? 0;
+    } else if (selectedTier === 'minimum') {
+      pct = tippingCulture.minimum.percent;
+    } else if (selectedTier === 'average') {
+      pct = tippingCulture.average.percent;
+    } else if (selectedTier === 'high') {
+      pct = tippingCulture.high.percent;
+    } else {
+      pct = customPercent;
+    }
+
+    return computeTierValues(pct);
   };
 
   const activeTip = getActiveTipDetails();
@@ -185,7 +237,7 @@ export const TipResults: React.FC<TipResultsProps> = ({
                 </span>
               </div>
               <h2 className="text-xl sm:text-2xl font-black text-zinc-900 tracking-tight">
-                Tip Recommendations
+                {t('tipRecommendations')}
               </h2>
               {receipt.city && (
                 <span className="inline-flex items-center gap-1 text-[11px] font-bold px-2.5 py-0.5 rounded-full bg-gradient-to-r from-pink-50 to-amber-50 text-zinc-900 border border-pink-200/80">
@@ -200,195 +252,396 @@ export const TipResults: React.FC<TipResultsProps> = ({
 
             <div className="flex flex-wrap items-center gap-2 text-xs text-zinc-600 mt-1">
               <span className="font-extrabold text-[#E1306C] bg-pink-50 px-2.5 py-0.5 rounded-md border border-pink-200/70 font-mono">
-                Pre-Tax Tip Basis: {receipt.currencySymbol}{tipBasisAmount.toFixed(2)}
+                {t('billSubtotal') || 'Pre-Tax Tip Basis'}: {receipt.currencySymbol}{tipBasisAmount.toFixed(2)}
               </span>
               <span className="text-zinc-400 hidden xs:inline">•</span>
               <span className="text-[11px] text-zinc-500">
-                Excludes Tax ({receipt.currencySymbol}{taxVal.toFixed(2)})
-                {surchargesVal > 0 && ` & SF Mandate (${receipt.currencySymbol}${surchargesVal.toFixed(2)})`}
+                {t('excludesTax')} ({receipt.currencySymbol}{taxVal.toFixed(2)})
               </span>
             </div>
           </div>
 
-          <div className="flex items-center gap-2">
+          {/* Round to Whole ($) Controls */}
+          <div className="flex flex-wrap items-center gap-2">
+            {/* 1-Tap Master Toggle Button explicitly labeled "Round to Whole ($)" */}
             <button
-              onClick={() => setRoundUpTotal(!roundUpTotal)}
-              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full border text-xs font-bold transition-all cursor-pointer ${
-                roundUpTotal
-                  ? 'ig-gradient text-white border-transparent shadow-md shadow-pink-500/20'
-                  : 'bg-zinc-50 text-zinc-700 border-zinc-200 hover:bg-zinc-100'
+              type="button"
+              onClick={() => {
+                if (roundMode === 'none') {
+                  setRoundMode('total');
+                } else if (roundMode === 'total') {
+                  setRoundMode('tip');
+                } else {
+                  setRoundMode('none');
+                }
+              }}
+              className={`flex items-center gap-1.5 px-3.5 py-1.5 rounded-full text-xs font-bold transition-all cursor-pointer shadow-xs active:scale-95 ${
+                roundMode !== 'none'
+                  ? 'ig-gradient text-white shadow-pink-500/25 ring-2 ring-pink-400/40'
+                  : 'bg-white text-zinc-800 border border-zinc-200 hover:border-pink-300'
               }`}
+              title="Toggle Round to Whole currency"
             >
               <Coins className="w-3.5 h-3.5" />
-              <span>Round to Whole {receipt.currencySymbol}</span>
+              <span>
+                {roundMode === 'total'
+                  ? `✓ ${t('wholeTotal')} (${receipt.currencySymbol})`
+                  : roundMode === 'tip'
+                  ? `✓ ${t('wholeTip')} (${receipt.currencySymbol})`
+                  : `${t('roundToWhole')} (${receipt.currencySymbol})`}
+              </span>
             </button>
+
+            {/* Segmented Selector for Exact Cents vs Whole Total vs Whole Tip */}
+            <div className="flex items-center p-0.5 bg-zinc-100/90 rounded-full border border-zinc-200 text-xs">
+              <button
+                type="button"
+                onClick={() => setRoundMode('none')}
+                className={`px-3 py-1 rounded-full font-bold transition-all cursor-pointer ${
+                  roundMode === 'none'
+                    ? 'bg-white text-zinc-900 shadow-xs'
+                    : 'text-zinc-500 hover:text-zinc-900'
+                }`}
+              >
+                {t('roundExact')}
+              </button>
+              <button
+                type="button"
+                onClick={() => setRoundMode('total')}
+                className={`flex items-center gap-1 px-3 py-1 rounded-full font-bold transition-all cursor-pointer ${
+                  roundMode === 'total'
+                    ? 'bg-[#E1306C] text-white shadow-xs'
+                    : 'text-zinc-500 hover:text-zinc-900'
+                }`}
+                title={`Round grand total to whole ${receipt.currencySymbol}`}
+              >
+                <span>{t('wholeTotal')}</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => setRoundMode('tip')}
+                className={`flex items-center gap-1 px-3 py-1 rounded-full font-bold transition-all cursor-pointer ${
+                  roundMode === 'tip'
+                    ? 'bg-[#E1306C] text-white shadow-xs'
+                    : 'text-zinc-500 hover:text-zinc-900'
+                }`}
+                title={`Round tip amount to whole ${receipt.currencySymbol}`}
+              >
+                <span>{t('wholeTip')}</span>
+              </button>
+            </div>
           </div>
         </div>
 
         {/* The 4 Tip Cards in a 2x2 or 4-col responsive grid */}
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-2.5 sm:gap-3.5 mt-4 sm:mt-5">
           {/* 1. Poor Service Card */}
-          <div
-            onClick={() => setSelectedTier('poor')}
-            className={`cursor-pointer rounded-2xl p-3.5 sm:p-4 border-2 transition-all flex flex-col justify-between relative ${
-              selectedTier === 'poor'
-                ? 'border-[#E1306C] bg-pink-50/25 shadow-md ring-2 ring-pink-500/20'
-                : 'border-zinc-200 hover:border-zinc-300 bg-zinc-50/40'
-            }`}
-          >
-            <div>
-              <div className="flex items-center justify-between">
-                <span className="text-[10px] sm:text-xs font-black uppercase tracking-wider text-zinc-500 truncate">
-                  Poor Service
-                </span>
-                <span className="text-[10px] sm:text-xs font-black px-1.5 py-0.5 rounded-full bg-zinc-200 text-zinc-800 font-mono">
-                  {tippingCulture.poor?.percent ?? 0}%
-                </span>
-              </div>
+          {(() => {
+            const poorPct = tippingCulture.poor?.percent ?? 0;
+            const data = computeTierValues(poorPct);
+            const isSelected = selectedTier === 'poor';
 
-              <div className="mt-2 sm:mt-3">
-                <div className="text-xl sm:text-2xl font-black text-zinc-900 font-mono">
-                  {receipt.currencySymbol}
-                  {(tipBasisAmount * ((tippingCulture.poor?.percent ?? 0) / 100)).toFixed(2)}
+            return (
+              <div
+                onClick={() => setSelectedTier('poor')}
+                className={`cursor-pointer rounded-2xl p-3.5 sm:p-4 border-2 transition-all flex flex-col justify-between relative ${
+                  isSelected
+                    ? 'border-[#E1306C] bg-pink-50/25 shadow-md ring-2 ring-pink-500/20'
+                    : 'border-zinc-200 hover:border-zinc-300 bg-zinc-50/40'
+                }`}
+              >
+                <div>
+                  <div className="flex items-center justify-between mb-2">
+                    <span className="text-[10px] sm:text-xs font-black uppercase tracking-wider text-zinc-500 truncate">
+                      {t('tierPoor')}
+                    </span>
+                    <span className="text-[10px] sm:text-xs font-black px-1.5 py-0.5 rounded-full bg-zinc-200 text-zinc-800 font-mono">
+                      {poorPct}%
+                    </span>
+                  </div>
+
+                  <div className="mt-1 space-y-1.5">
+                    {/* Tip row */}
+                    <div className="flex items-baseline justify-between gap-1">
+                      <span className="text-[11px] font-bold text-zinc-500">
+                        {t('tip')}:
+                      </span>
+                      <div className="text-right flex items-baseline gap-1">
+                        <span className={`font-mono font-black text-base sm:text-lg ${roundMode === 'tip' ? 'text-[#E1306C]' : 'text-zinc-900'}`}>
+                          {receipt.currencySymbol}{data.tipAmount.toFixed(2)}
+                        </span>
+                        {roundMode === 'tip' && (
+                          <span className="text-[9px] font-bold text-[#E1306C] bg-pink-50 border border-pink-200 px-1 py-0.2 rounded font-sans">
+                            {t('wholeTip')}
+                          </span>
+                        )}
+                      </div>
+                    </div>
+
+                    {/* Total row */}
+                    <div className="flex items-baseline justify-between gap-1 pt-1 border-t border-zinc-200/60">
+                      <span className="text-[11px] font-bold text-zinc-500">
+                        Total:
+                      </span>
+                      <div className="text-right flex items-baseline gap-1">
+                        <span className={`font-mono font-black text-base sm:text-lg ${roundMode === 'total' ? 'text-[#E1306C]' : 'text-zinc-800'}`}>
+                          {receipt.currencySymbol}{data.grandTotal.toFixed(2)}
+                        </span>
+                        {roundMode === 'total' && (
+                          <span className="text-[9px] font-bold text-amber-700 bg-amber-50 border border-amber-200 px-1 py-0.2 rounded font-sans">
+                            {t('wholeTotal')}
+                          </span>
+                        )}
+                      </div>
+                    </div>
+
+                    <div className="text-[10px] text-zinc-400 font-mono text-right">
+                      {data.percent}% on pre-tax
+                    </div>
+                  </div>
                 </div>
-                <div className="text-[10px] sm:text-xs text-zinc-500 mt-0.5 font-mono">
-                  Total: {receipt.currencySymbol}
-                  {(totalVal + tipBasisAmount * ((tippingCulture.poor?.percent ?? 0) / 100)).toFixed(2)}
+
+                <div className="mt-2.5 pt-2 border-t border-zinc-200/60 text-[10px] sm:text-[11px] text-zinc-500 line-clamp-2">
+                  {tippingCulture.poor?.description || 'Sub-par service baseline.'}
                 </div>
               </div>
-            </div>
-
-            <div className="mt-2.5 pt-2 border-t border-zinc-200/60 text-[10px] sm:text-[11px] text-zinc-500 line-clamp-2">
-              {tippingCulture.poor?.description || 'Sub-par service baseline.'}
-            </div>
-          </div>
+            );
+          })()}
 
           {/* 2. Minimum Tip Card */}
-          <div
-            onClick={() => setSelectedTier('minimum')}
-            className={`cursor-pointer rounded-2xl p-3.5 sm:p-4 border-2 transition-all flex flex-col justify-between relative ${
-              selectedTier === 'minimum'
-                ? 'border-[#E1306C] bg-pink-50/25 shadow-md ring-2 ring-pink-500/20'
-                : 'border-zinc-200 hover:border-zinc-300 bg-zinc-50/40'
-            }`}
-          >
-            <div>
-              <div className="flex items-center justify-between">
-                <span className="text-[10px] sm:text-xs font-black uppercase tracking-wider text-zinc-500 truncate">
-                  Minimum
-                </span>
-                <span className="text-[10px] sm:text-xs font-black px-1.5 py-0.5 rounded-full bg-zinc-200 text-zinc-800 font-mono">
-                  {tippingCulture.minimum.percent}%
-                </span>
-              </div>
+          {(() => {
+            const data = computeTierValues(tippingCulture.minimum.percent);
+            const isSelected = selectedTier === 'minimum';
 
-              <div className="mt-2 sm:mt-3">
-                <div className="text-xl sm:text-2xl font-black text-zinc-900 font-mono">
-                  {receipt.currencySymbol}
-                  {(tipBasisAmount * (tippingCulture.minimum.percent / 100)).toFixed(2)}
+            return (
+              <div
+                onClick={() => setSelectedTier('minimum')}
+                className={`cursor-pointer rounded-2xl p-3.5 sm:p-4 border-2 transition-all flex flex-col justify-between relative ${
+                  isSelected
+                    ? 'border-[#E1306C] bg-pink-50/25 shadow-md ring-2 ring-pink-500/20'
+                    : 'border-zinc-200 hover:border-zinc-300 bg-zinc-50/40'
+                }`}
+              >
+                <div>
+                  <div className="flex items-center justify-between mb-2">
+                    <span className="text-[10px] sm:text-xs font-black uppercase tracking-wider text-zinc-500 truncate">
+                      {t('tierMinimum')}
+                    </span>
+                    <span className="text-[10px] sm:text-xs font-black px-1.5 py-0.5 rounded-full bg-zinc-200 text-zinc-800 font-mono">
+                      {tippingCulture.minimum.percent}%
+                    </span>
+                  </div>
+
+                  <div className="mt-1 space-y-1.5">
+                    {/* Tip row */}
+                    <div className="flex items-baseline justify-between gap-1">
+                      <span className="text-[11px] font-bold text-zinc-500">
+                        {t('tip')}:
+                      </span>
+                      <div className="text-right flex items-baseline gap-1">
+                        <span className={`font-mono font-black text-base sm:text-lg ${roundMode === 'tip' ? 'text-[#E1306C]' : 'text-zinc-900'}`}>
+                          {receipt.currencySymbol}{data.tipAmount.toFixed(2)}
+                        </span>
+                        {roundMode === 'tip' && (
+                          <span className="text-[9px] font-bold text-[#E1306C] bg-pink-50 border border-pink-200 px-1 py-0.2 rounded font-sans">
+                            {t('wholeTip')}
+                          </span>
+                        )}
+                      </div>
+                    </div>
+
+                    {/* Total row */}
+                    <div className="flex items-baseline justify-between gap-1 pt-1 border-t border-zinc-200/60">
+                      <span className="text-[11px] font-bold text-zinc-500">
+                        Total:
+                      </span>
+                      <div className="text-right flex items-baseline gap-1">
+                        <span className={`font-mono font-black text-base sm:text-lg ${roundMode === 'total' ? 'text-[#E1306C]' : 'text-zinc-800'}`}>
+                          {receipt.currencySymbol}{data.grandTotal.toFixed(2)}
+                        </span>
+                        {roundMode === 'total' && (
+                          <span className="text-[9px] font-bold text-amber-700 bg-amber-50 border border-amber-200 px-1 py-0.2 rounded font-sans">
+                            {t('wholeTotal')}
+                          </span>
+                        )}
+                      </div>
+                    </div>
+
+                    <div className="text-[10px] text-zinc-400 font-mono text-right">
+                      {data.percent}% on pre-tax
+                    </div>
+                  </div>
                 </div>
-                <div className="text-[10px] sm:text-xs text-zinc-500 mt-0.5 font-mono">
-                  Total: {receipt.currencySymbol}
-                  {(totalVal + tipBasisAmount * (tippingCulture.minimum.percent / 100)).toFixed(2)}
+
+                <div className="mt-2.5 pt-2 border-t border-zinc-200/60 text-[10px] sm:text-[11px] text-zinc-500 line-clamp-2">
+                  {tippingCulture.minimum.label}
                 </div>
               </div>
-            </div>
-
-            <div className="mt-2.5 pt-2 border-t border-zinc-200/60 text-[10px] sm:text-[11px] text-zinc-500 line-clamp-2">
-              {tippingCulture.minimum.label}
-            </div>
-          </div>
+            );
+          })()}
 
           {/* 3. Average Tip Card (Featured in Instagram Story Ring!) */}
-          <div
-            onClick={() => setSelectedTier('average')}
-            className={`cursor-pointer rounded-2xl p-3.5 sm:p-4 border-2 transition-all flex flex-col justify-between relative ${
-              selectedTier === 'average'
-                ? 'border-transparent shadow-xl ring-2 ring-pink-500/30 bg-gradient-to-b from-white to-pink-50/30'
-                : 'border-pink-200/70 hover:border-pink-400 bg-white'
-            }`}
-          >
-            {/* Instagram story gradient border if selected */}
-            {selectedTier === 'average' && (
-              <div className="absolute inset-0 rounded-2xl ig-gradient -z-10 p-[2px]">
-                <div className="w-full h-full bg-white rounded-[14px]" />
-              </div>
-            )}
+          {(() => {
+            const data = computeTierValues(tippingCulture.average.percent);
+            const isSelected = selectedTier === 'average';
 
-            {/* Featured Badge */}
-            <div className="absolute -top-2.5 left-1/2 -translate-x-1/2 ig-gradient text-white text-[9px] font-black uppercase tracking-wider px-2.5 py-0.2 rounded-full shadow-xs flex items-center gap-0.5 whitespace-nowrap">
-              <Flame className="w-2.5 h-2.5 text-yellow-200 fill-yellow-200" />
-              <span>Standard</span>
-            </div>
+            return (
+              <div
+                onClick={() => setSelectedTier('average')}
+                className={`cursor-pointer rounded-2xl p-3.5 sm:p-4 border-2 transition-all flex flex-col justify-between relative ${
+                  isSelected
+                    ? 'border-transparent shadow-xl ring-2 ring-pink-500/30 bg-gradient-to-b from-white to-pink-50/30'
+                    : 'border-pink-200/70 hover:border-pink-400 bg-white'
+                }`}
+              >
+                {/* Instagram story gradient border if selected */}
+                {isSelected && (
+                  <div className="absolute inset-0 rounded-2xl ig-gradient -z-10 p-[2px]">
+                    <div className="w-full h-full bg-white rounded-[14px]" />
+                  </div>
+                )}
 
-            <div>
-              <div className="flex items-center justify-between">
-                <span className="text-[10px] sm:text-xs font-black uppercase tracking-wider ig-gradient-text truncate">
-                  Standard
-                </span>
-                <span className="text-[10px] sm:text-xs font-black px-1.5 py-0.5 rounded-full ig-gradient text-white shadow-xs font-mono">
-                  {tippingCulture.average.percent}%
-                </span>
-              </div>
-
-              <div className="mt-2 sm:mt-3">
-                <div className="text-xl sm:text-2xl font-black ig-gradient-text font-mono">
-                  {receipt.currencySymbol}
-                  {(tipBasisAmount * (tippingCulture.average.percent / 100)).toFixed(2)}
+                {/* Featured Badge */}
+                <div className="absolute -top-2.5 left-1/2 -translate-x-1/2 ig-gradient text-white text-[9px] font-black uppercase tracking-wider px-2.5 py-0.2 rounded-full shadow-xs flex items-center gap-0.5 whitespace-nowrap">
+                  <Flame className="w-2.5 h-2.5 text-yellow-200 fill-yellow-200" />
+                  <span>{t('tierAverage')}</span>
                 </div>
-                <div className="text-[10px] sm:text-xs text-zinc-700 mt-0.5 font-mono font-bold">
-                  Total: {receipt.currencySymbol}
-                  {(totalVal + tipBasisAmount * (tippingCulture.average.percent / 100)).toFixed(2)}
+
+                <div>
+                  <div className="flex items-center justify-between mb-2">
+                    <span className="text-[10px] sm:text-xs font-black uppercase tracking-wider ig-gradient-text truncate">
+                      {t('tierAverage')}
+                    </span>
+                    <span className="text-[10px] sm:text-xs font-black px-1.5 py-0.5 rounded-full ig-gradient text-white shadow-xs font-mono">
+                      {tippingCulture.average.percent}%
+                    </span>
+                  </div>
+
+                  <div className="mt-1 space-y-1.5">
+                    {/* Tip row */}
+                    <div className="flex items-baseline justify-between gap-1">
+                      <span className="text-[11px] font-bold text-zinc-500">
+                        {t('tip')}:
+                      </span>
+                      <div className="text-right flex items-baseline gap-1">
+                        <span className={`font-mono font-black text-base sm:text-lg ${roundMode === 'tip' ? 'text-[#E1306C]' : 'ig-gradient-text'}`}>
+                          {receipt.currencySymbol}{data.tipAmount.toFixed(2)}
+                        </span>
+                        {roundMode === 'tip' && (
+                          <span className="text-[9px] font-bold text-[#E1306C] bg-pink-50 border border-pink-200 px-1 py-0.2 rounded font-sans">
+                            {t('wholeTip')}
+                          </span>
+                        )}
+                      </div>
+                    </div>
+
+                    {/* Total row */}
+                    <div className="flex items-baseline justify-between gap-1 pt-1 border-t border-pink-100">
+                      <span className="text-[11px] font-bold text-zinc-500">
+                        Total:
+                      </span>
+                      <div className="text-right flex items-baseline gap-1">
+                        <span className={`font-mono font-black text-base sm:text-lg ${roundMode === 'total' ? 'text-[#E1306C]' : 'text-zinc-900'}`}>
+                          {receipt.currencySymbol}{data.grandTotal.toFixed(2)}
+                        </span>
+                        {roundMode === 'total' && (
+                          <span className="text-[9px] font-bold text-amber-700 bg-amber-50 border border-amber-200 px-1 py-0.2 rounded font-sans">
+                            {t('wholeTotal')}
+                          </span>
+                        )}
+                      </div>
+                    </div>
+
+                    <div className="text-[10px] text-zinc-400 font-mono text-right">
+                      {data.percent}% on pre-tax
+                    </div>
+                  </div>
+                </div>
+
+                <div className="mt-2.5 pt-2 border-t border-pink-100 text-[10px] sm:text-[11px] text-zinc-600 line-clamp-2">
+                  {tippingCulture.average.label}
                 </div>
               </div>
-            </div>
-
-            <div className="mt-2.5 pt-2 border-t border-pink-100 text-[10px] sm:text-[11px] text-zinc-600 line-clamp-2">
-              {tippingCulture.average.label}
-            </div>
-          </div>
+            );
+          })()}
 
           {/* 4. High Tip Card */}
-          <div
-            onClick={() => setSelectedTier('high')}
-            className={`cursor-pointer rounded-2xl p-3.5 sm:p-4 border-2 transition-all flex flex-col justify-between relative ${
-              selectedTier === 'high'
-                ? 'border-[#E1306C] bg-pink-50/25 shadow-md ring-2 ring-pink-500/20'
-                : 'border-zinc-200 hover:border-zinc-300 bg-zinc-50/40'
-            }`}
-          >
-            <div>
-              <div className="flex items-center justify-between">
-                <span className="text-[10px] sm:text-xs font-black uppercase tracking-wider text-zinc-500 truncate">
-                  Generous
-                </span>
-                <span className="text-[10px] sm:text-xs font-black px-1.5 py-0.5 rounded-full bg-zinc-200 text-zinc-800 font-mono">
-                  {tippingCulture.high.percent}%
-                </span>
-              </div>
+          {(() => {
+            const data = computeTierValues(tippingCulture.high.percent);
+            const isSelected = selectedTier === 'high';
 
-              <div className="mt-2 sm:mt-3">
-                <div className="text-xl sm:text-2xl font-black text-zinc-900 font-mono">
-                  {receipt.currencySymbol}
-                  {(tipBasisAmount * (tippingCulture.high.percent / 100)).toFixed(2)}
+            return (
+              <div
+                onClick={() => setSelectedTier('high')}
+                className={`cursor-pointer rounded-2xl p-3.5 sm:p-4 border-2 transition-all flex flex-col justify-between relative ${
+                  isSelected
+                    ? 'border-[#E1306C] bg-pink-50/25 shadow-md ring-2 ring-pink-500/20'
+                    : 'border-zinc-200 hover:border-zinc-300 bg-zinc-50/40'
+                }`}
+              >
+                <div>
+                  <div className="flex items-center justify-between mb-2">
+                    <span className="text-[10px] sm:text-xs font-black uppercase tracking-wider text-zinc-500 truncate">
+                      {t('tierHigh')}
+                    </span>
+                    <span className="text-[10px] sm:text-xs font-black px-1.5 py-0.5 rounded-full bg-zinc-200 text-zinc-800 font-mono">
+                      {tippingCulture.high.percent}%
+                    </span>
+                  </div>
+
+                  <div className="mt-1 space-y-1.5">
+                    {/* Tip row */}
+                    <div className="flex items-baseline justify-between gap-1">
+                      <span className="text-[11px] font-bold text-zinc-500">
+                        {t('tip')}:
+                      </span>
+                      <div className="text-right flex items-baseline gap-1">
+                        <span className={`font-mono font-black text-base sm:text-lg ${roundMode === 'tip' ? 'text-[#E1306C]' : 'text-zinc-900'}`}>
+                          {receipt.currencySymbol}{data.tipAmount.toFixed(2)}
+                        </span>
+                        {roundMode === 'tip' && (
+                          <span className="text-[9px] font-bold text-[#E1306C] bg-pink-50 border border-pink-200 px-1 py-0.2 rounded font-sans">
+                            {t('wholeTip')}
+                          </span>
+                        )}
+                      </div>
+                    </div>
+
+                    {/* Total row */}
+                    <div className="flex items-baseline justify-between gap-1 pt-1 border-t border-zinc-200/60">
+                      <span className="text-[11px] font-bold text-zinc-500">
+                        Total:
+                      </span>
+                      <div className="text-right flex items-baseline gap-1">
+                        <span className={`font-mono font-black text-base sm:text-lg ${roundMode === 'total' ? 'text-[#E1306C]' : 'text-zinc-800'}`}>
+                          {receipt.currencySymbol}{data.grandTotal.toFixed(2)}
+                        </span>
+                        {roundMode === 'total' && (
+                          <span className="text-[9px] font-bold text-amber-700 bg-amber-50 border border-amber-200 px-1 py-0.2 rounded font-sans">
+                            {t('wholeTotal')}
+                          </span>
+                        )}
+                      </div>
+                    </div>
+
+                    <div className="text-[10px] text-zinc-400 font-mono text-right">
+                      {data.percent}% on pre-tax
+                    </div>
+                  </div>
                 </div>
-                <div className="text-[10px] sm:text-xs text-zinc-500 mt-0.5 font-mono">
-                  Total: {receipt.currencySymbol}
-                  {(totalVal + tipBasisAmount * (tippingCulture.high.percent / 100)).toFixed(2)}
+
+                <div className="mt-2.5 pt-2 border-t border-zinc-200/60 text-[10px] sm:text-[11px] text-zinc-500 line-clamp-2">
+                  {tippingCulture.high.label}
                 </div>
               </div>
-            </div>
-
-            <div className="mt-2.5 pt-2 border-t border-zinc-200/60 text-[10px] sm:text-[11px] text-zinc-500 line-clamp-2">
-              {tippingCulture.high.label}
-            </div>
-          </div>
+            );
+          })()}
         </div>
 
         {/* Custom Tip Slider Section */}
         <div className="mt-5 pt-4 border-t border-zinc-100">
           <div className="flex items-center justify-between mb-2">
-            <span className="text-xs font-extrabold text-zinc-700">Custom Tip Percentage:</span>
+            <span className="text-xs font-extrabold text-zinc-700">{t('customTip')}:</span>
             <span className="text-xs font-mono font-black ig-gradient text-white px-2.5 py-0.5 rounded-full shadow-xs">
               {activeTip.percent}% ({receipt.currencySymbol}{activeTip.tipAmount.toFixed(2)})
             </span>
@@ -421,17 +674,29 @@ export const TipResults: React.FC<TipResultsProps> = ({
         {/* Selected Tip Summary Box (Instagram Style) */}
         <div className="mt-5 bg-gradient-to-br from-zinc-950 via-zinc-900 to-zinc-950 text-white rounded-2xl p-4 sm:p-6 shadow-xl flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 border border-zinc-800">
           <div>
-            <span className="text-[11px] text-zinc-400 font-bold uppercase tracking-wider">
-              Total with Selected Tip
-            </span>
+            <div className="flex items-center gap-2">
+              <span className="text-[11px] text-zinc-400 font-bold uppercase tracking-wider">
+                {t('totalWithSelectedTip')}
+              </span>
+              {roundMode === 'total' && (
+                <span className="text-[10px] font-extrabold text-yellow-300 bg-zinc-800/90 border border-zinc-700 px-2 py-0.2 rounded-full">
+                  🪙 {t('wholeTotal')}: {receipt.currencySymbol}{activeTip.grandTotal.toFixed(2)}
+                </span>
+              )}
+              {roundMode === 'tip' && (
+                <span className="text-[10px] font-extrabold text-emerald-300 bg-zinc-800/90 border border-zinc-700 px-2 py-0.2 rounded-full">
+                  💵 {t('wholeTip')}: {receipt.currencySymbol}{activeTip.tipAmount.toFixed(2)}
+                </span>
+              )}
+            </div>
             <div className="text-3xl sm:text-4xl font-black font-mono tracking-tight text-white mt-0.5">
               {receipt.currencySymbol}{activeTip.grandTotal.toFixed(2)}
             </div>
             <div className="text-xs text-zinc-300 mt-1 flex flex-wrap items-center gap-2">
-              <span>Bill: {receipt.currencySymbol}{totalVal.toFixed(2)}</span>
+              <span>{t('bill')}: {receipt.currencySymbol}{totalVal.toFixed(2)}</span>
               <span>+</span>
               <span className="ig-gradient-text font-black">
-                Tip ({activeTip.percent}%): {receipt.currencySymbol}{activeTip.tipAmount.toFixed(2)}
+                {t('tip')} ({activeTip.percent}%): {receipt.currencySymbol}{activeTip.tipAmount.toFixed(2)}
               </span>
               {surchargesVal > 0 && (
                 <span className="text-amber-400 text-[11px] font-medium">
@@ -447,7 +712,7 @@ export const TipResults: React.FC<TipResultsProps> = ({
               className="w-full sm:w-auto flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl ig-gradient hover:opacity-95 text-white text-xs font-bold transition-all shadow-md shadow-pink-500/25 active:scale-95 cursor-pointer"
             >
               <Receipt className="w-4 h-4" />
-              Scan Another
+              {t('scanAnother')}
             </button>
           </div>
         </div>

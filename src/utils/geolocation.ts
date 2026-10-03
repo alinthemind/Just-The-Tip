@@ -78,35 +78,106 @@ export async function reverseGeocodeCoords(
   return fallback;
 }
 
+export async function getIpLocation(): Promise<UserLocation | null> {
+  try {
+    const res = await fetch('/api/ip-location');
+    if (res.ok) {
+      const data = await res.json();
+      if (data && data.countryCode) {
+        const rule = getTippingRuleForCountry(data.countryCode);
+        const loc: UserLocation = {
+          latitude: data.latitude || null,
+          longitude: data.longitude || null,
+          countryCode: data.countryCode,
+          countryName: data.countryName || rule.countryName,
+          city: data.city || rule.countryName,
+          flag: rule.flag,
+          currencyCode: rule.currencyCode,
+          currencySymbol: rule.currencySymbol,
+          isGps: false,
+          source: 'ip',
+        };
+        saveLocation(loc);
+        return loc;
+      }
+    }
+  } catch (err) {
+    console.warn('IP location fetch failed:', err);
+  }
+  return null;
+}
+
 export function requestBrowserGps(): Promise<UserLocation> {
   return new Promise((resolve) => {
-    if (!navigator.geolocation) {
-      const saved = getSavedLocation();
-      resolve({ ...saved, error: 'Geolocation is not supported by your browser' });
+    // 1. Try browser device GPS first with a responsive timeout (3500ms)
+    if (navigator.geolocation) {
+      let isSettled = false;
+
+      const timeoutId = setTimeout(async () => {
+        if (!isSettled) {
+          isSettled = true;
+          console.warn('Browser GPS timed out, falling back to IP network location');
+          const ipLoc = await getIpLocation();
+          if (ipLoc) {
+            resolve(ipLoc);
+          } else {
+            const saved = getSavedLocation();
+            resolve({ ...saved, error: 'GPS request timed out' });
+          }
+        }
+      }, 3500);
+
+      navigator.geolocation.getCurrentPosition(
+        async (pos) => {
+          if (isSettled) return;
+          isSettled = true;
+          clearTimeout(timeoutId);
+          try {
+            const { latitude, longitude } = pos.coords;
+            const loc = await reverseGeocodeCoords(latitude, longitude);
+            loc.source = 'gps';
+            resolve(loc);
+          } catch (geoErr) {
+            const ipLoc = await getIpLocation();
+            resolve(ipLoc || getSavedLocation());
+          }
+        },
+        async (error) => {
+          if (isSettled) return;
+          isSettled = true;
+          clearTimeout(timeoutId);
+          console.warn('Browser GPS access denied or unavailable, trying IP location:', error.message);
+          // Automatic seamless fallback to IP location
+          const ipLoc = await getIpLocation();
+          if (ipLoc) {
+            resolve(ipLoc);
+          } else {
+            const saved = getSavedLocation();
+            resolve({
+              ...saved,
+              isGps: false,
+              error: error.message || 'Location access denied or unavailable',
+            });
+          }
+        },
+        {
+          enableHighAccuracy: true,
+          timeout: 3500,
+          maximumAge: 30000,
+        }
+      );
       return;
     }
 
-    navigator.geolocation.getCurrentPosition(
-      async (pos) => {
-        const { latitude, longitude } = pos.coords;
-        const loc = await reverseGeocodeCoords(latitude, longitude);
-        resolve(loc);
-      },
-      (error) => {
-        console.warn('Geolocation error:', error.message);
+    // 2. If navigator.geolocation not supported at all, fallback directly to IP location
+    getIpLocation().then((ipLoc) => {
+      if (ipLoc) {
+        resolve(ipLoc);
+      } else {
         const saved = getSavedLocation();
-        resolve({
-          ...saved,
-          isGps: false,
-          error: error.message || 'Location access denied or unavailable',
-        });
-      },
-      {
-        enableHighAccuracy: true,
-        timeout: 10000,
-        maximumAge: 60000,
+        resolve({ ...saved, error: 'Geolocation is not supported by your browser' });
       }
-    );
+    });
   });
 }
 

@@ -72,11 +72,27 @@ function buildFallbackReceiptData(
   }
 
   // 2. Try matching any sample receipts if clicked
+  let decodedStr = imageStr;
+  try {
+    decodedStr = decodeURIComponent(imageStr.replace(/%(?![0-9a-fA-F]{2})/g, '%25'));
+  } catch {
+    decodedStr = imageStr;
+  }
+
   for (const sample of SAMPLE_RECEIPTS) {
     if (
+      imageStr.includes(sample.id) ||
+      decodedStr.includes(sample.id) ||
       imageStr.includes(encodeURIComponent(sample.name)) ||
-      imageStr.includes(sample.name) ||
-      imageStr.includes(sample.id)
+      decodedStr.includes(sample.name) ||
+      (sample.countryCode === 'HK' && (decodedStr.includes('Maxim') || decodedStr.includes('美心') || decodedStr.includes('Hong Kong') || decodedStr.includes('HK$'))) ||
+      (sample.countryCode === 'TW' && (decodedStr.includes('鼎泰豐') || decodedStr.includes('Din Tai Fung') || decodedStr.includes('Taipei') || decodedStr.includes('NT$'))) ||
+      (sample.countryCode === 'CN' && (decodedStr.includes('老吉士') || decodedStr.includes('Old Jesse') || decodedStr.includes('姥姥家') || decodedStr.includes('Shanghai'))) ||
+      (sample.countryCode === 'TH' && (decodedStr.includes('Calypso') || decodedStr.includes('Somtum') || decodedStr.includes('Bangkok') || decodedStr.includes('ส้มตำ'))) ||
+      (sample.countryCode === 'JP' && (decodedStr.includes('Sukiyabashi') || decodedStr.includes('すきやばし') || decodedStr.includes('Jiro') || decodedStr.includes('次郎') || decodedStr.includes('Tokyo'))) ||
+      (sample.countryCode === 'FR' && (decodedStr.includes('Robuchon') || decodedStr.includes('Joël') || decodedStr.includes('Paris'))) ||
+      (sample.countryCode === 'US' && sample.city === 'San Francisco' && (decodedStr.includes('Bix') || decodedStr.includes('San Francisco') || decodedStr.includes('Zuni'))) ||
+      (sample.countryCode === 'US' && sample.city === 'Las Vegas' && (decodedStr.includes('Las Vegas') || decodedStr.includes('Bellagio')))
     ) {
       merchant = sample.name;
       preTaxSubtotal = sample.subtotal;
@@ -94,36 +110,81 @@ function buildFallbackReceiptData(
     }
   }
 
-  // 3. If SVG XML format or string, detect Chicago or SF mandate
+  // 3. Fallback regex detection on text for cities, currencies, and surcharges
+  if (!detectedCity || !countryCode) {
+    if (/hong\s*kong|美心|kowloon|central|hk\$|hkd/i.test(decodedStr)) {
+      detectedCity = 'Hong Kong';
+      countryCode = 'HK';
+      countryName = 'Hong Kong';
+    } else if (/taiwan|taipei|鼎泰豐|nt\$/i.test(decodedStr)) {
+      detectedCity = 'Taipei';
+      countryCode = 'TW';
+      countryName = 'Taiwan';
+    } else if (/bangkok|thailand|somtum|฿|thb/i.test(decodedStr)) {
+      detectedCity = 'Bangkok';
+      countryCode = 'TH';
+      countryName = 'Thailand';
+    } else if (/shanghai|china|姥姥家/i.test(decodedStr)) {
+      detectedCity = 'Shanghai';
+      countryCode = 'CN';
+      countryName = 'China';
+    } else if (/las\s*vegas|bellagio/i.test(decodedStr)) {
+      detectedCity = 'Las Vegas';
+      detectedState = 'NV';
+      countryCode = 'US';
+      countryName = 'United States';
+    } else if (/chicago/i.test(decodedStr)) {
+      detectedCity = 'Chicago';
+      detectedState = 'IL';
+      countryCode = 'US';
+      countryName = 'United States';
+    } else if (/san\s*francisco|sf/i.test(decodedStr)) {
+      detectedCity = 'San Francisco';
+      detectedState = 'CA';
+      countryCode = 'US';
+      countryName = 'United States';
+    } else if (/tokyo|japan|sukiyabashi|jiro|すきやばし|一蘭|寿司|ichiran|sushi\s*dai|toyosu|shinjuku/i.test(decodedStr)) {
+      detectedCity = 'Tokyo';
+      countryCode = 'JP';
+      countryName = 'Japan';
+    } else if (/paris|france|robuchon|joël|paul\s*bert|café\s*de\s*flore|croque|saint-germain/i.test(decodedStr)) {
+      detectedCity = 'Paris';
+      countryCode = 'FR';
+      countryName = 'France';
+    } else if (/bangkok|thailand|calypso|somtum|฿|thb/i.test(decodedStr)) {
+      detectedCity = 'Bangkok';
+      countryCode = 'TH';
+      countryName = 'Thailand';
+    } else if (/shanghai|china|老吉士|old\s*jesse|姥姥家/i.test(decodedStr)) {
+      detectedCity = 'Shanghai';
+      countryCode = 'CN';
+      countryName = 'China';
+    } else if (/san\s*francisco|sf|bix/i.test(decodedStr)) {
+      detectedCity = 'San Francisco';
+      detectedState = 'CA';
+      countryCode = 'US';
+      countryName = 'United States';
+    } else if (/mexico\s*city|mexico|cdmx|califa|pujol|taqueria|condesa|polanco/i.test(decodedStr)) {
+      detectedCity = 'Mexico City';
+      countryCode = 'MX';
+      countryName = 'Mexico';
+    }
+  }
+
+  // Parse financial amounts if present in SVG or plain text
   if (
-    imageStr.includes('SUBTOTAL') ||
-    imageStr.includes('TOTAL') ||
-    imageStr.includes('Chicago') ||
-    imageStr.includes('Mandate')
+    decodedStr.includes('SUBTOTAL') ||
+    decodedStr.includes('TOTAL') ||
+    decodedStr.includes('SERVICE CHARGE')
   ) {
     try {
-      let decoded = imageStr;
-      try {
-        decoded = decodeURIComponent(imageStr.replace(/%(?![0-9a-fA-F]{2})/g, '%25'));
-      } catch {
-        decoded = imageStr;
-      }
-
-      if (/chicago/i.test(decoded)) {
-        detectedCity = 'Chicago';
-        detectedState = 'IL';
-      } else if (/san\s*francisco|sf/i.test(decoded)) {
-        detectedCity = 'San Francisco';
-        detectedState = 'CA';
-      }
-
       const subMatch =
-        decoded.match(/SUBTOTAL[^:]*:[^0-9]*([0-9]+\.[0-9]{2})/i) ||
-        decoded.match(/SUBTOTAL[:\s]+[$€£¥]?\s*([0-9]+(?:\.[0-9]{2})?)/i);
-      if (subMatch) preTaxSubtotal = parseFloat(subMatch[1]) || preTaxSubtotal;
+        decodedStr.match(/SUBTOTAL[^:]*:[^0-9]*([0-9]+\.[0-9]{2})/i) ||
+        decodedStr.match(/SUBTOTAL[:\s]+[$€£¥฿]?\s*([0-9]+(?:\.[0-9]{2})?)/i);
+      if (subMatch && preTaxSubtotal === 48.0) preTaxSubtotal = parseFloat(subMatch[1]) || preTaxSubtotal;
 
-      const sfMatch = decoded.match(/(?:SF\s*MANDATE|HEALTH)[^:]*:[^0-9]*([0-9]+\.[0-9]{2})/i);
-      if (sfMatch) {
+      const sfMatch = decodedStr.match(/(?:SF\s*MANDATE|HEALTH)[^:]*:[^0-9]*([0-9]+\.[0-9]{2})/i);
+      if (sfMatch && surcharges.length === 0) {
         const scAmt = parseFloat(sfMatch[1]) || 0;
         surcharges.push({
           name: 'SF Health Mandate (5%)',
@@ -133,14 +194,15 @@ function buildFallbackReceiptData(
       }
 
       const taxMatch =
-        decoded.match(/TAX[^:]*:[^0-9]*([0-9]+\.[0-9]{2})/i) ||
-        decoded.match(/TAX[:\s]+[$€£¥]?\s*([0-9]+(?:\.[0-9]{2})?)/i);
-      if (taxMatch) tax = parseFloat(taxMatch[1]) || tax;
+        decodedStr.match(/TAX[^:]*:[^0-9]*([0-9]+\.[0-9]{2})/i) ||
+        decodedStr.match(/TAX[:\s]+[$€£¥฿]?\s*([0-9]+(?:\.[0-9]{2})?)/i);
+      if (taxMatch && tax === 4.25) tax = parseFloat(taxMatch[1]) || tax;
 
       const scMatch =
-        decoded.match(/SERVICE CHARGE[^:]*:[^0-9]*([0-9]+\.[0-9]{2})/i) ||
-        decoded.match(/SERVICE CHARGE[:\s]+[$€£¥]?\s*([0-9]+(?:\.[0-9]{2})?)/i);
-      if (scMatch) {
+        decodedStr.match(/SERVICE CHARGE[^:]*:[^0-9]*([0-9]+\.[0-9]{2})/i) ||
+        decodedStr.match(/SERVICE CHARGE[:\s]+[$€£¥฿]?\s*([0-9]+(?:\.[0-9]{2})?)/i) ||
+        decodedStr.match(/(?:加一|服務費)[^0-9]*([0-9]+\.[0-9]{2})/i);
+      if (scMatch && serviceCharge === 0) {
         serviceCharge = parseFloat(scMatch[1]) || 0;
         serviceChargeIncluded = true;
       }
@@ -335,6 +397,80 @@ app.post('/api/reverse-geocode', async (req: Request, res: Response) => {
   } catch (error: any) {
     console.error('Reverse geocode error:', error);
     res.status(500).json({ error: error?.message || 'Geocoding failed' });
+  }
+});
+
+// Network IP Geolocation route (instant fallback when device GPS is blocked/denied in browser)
+app.get('/api/ip-location', async (req: Request, res: Response) => {
+  try {
+    const forwarded = req.headers['x-forwarded-for'];
+    let clientIp = '';
+    if (typeof forwarded === 'string') {
+      clientIp = forwarded.split(',')[0].trim();
+    } else if (Array.isArray(forwarded) && forwarded[0]) {
+      clientIp = forwarded[0].trim();
+    } else {
+      clientIp = req.socket.remoteAddress || '';
+    }
+
+    const isLocalhost =
+      !clientIp ||
+      clientIp === '::1' ||
+      clientIp === '127.0.0.1' ||
+      clientIp.startsWith('192.168.') ||
+      clientIp.startsWith('10.');
+
+    const targetUrl = isLocalhost ? 'https://ipwho.is/' : `https://ipwho.is/${clientIp}`;
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 3500);
+
+    const ipRes = await fetch(targetUrl, { signal: controller.signal });
+    clearTimeout(timeout);
+
+    if (ipRes.ok) {
+      const data = await ipRes.json();
+      if (data && data.success) {
+        const countryCode = (data.country_code || 'US').toUpperCase();
+        const rule = getTippingRuleForCountry(countryCode);
+        return res.json({
+          latitude: data.latitude,
+          longitude: data.longitude,
+          countryCode: countryCode,
+          countryName: data.country || rule.countryName,
+          city: data.city || rule.countryName,
+          state: data.region || '',
+          flag: rule.flag,
+          currencyCode: rule.currencyCode,
+          currencySymbol: rule.currencySymbol,
+          isGps: false,
+          source: 'ip',
+        });
+      }
+    }
+
+    // Default fallback
+    return res.json({
+      countryCode: 'US',
+      countryName: 'United States',
+      city: 'United States',
+      flag: '🇺🇸',
+      currencyCode: 'USD',
+      currencySymbol: '$',
+      isGps: false,
+      source: 'default',
+    });
+  } catch (err: any) {
+    console.warn('IP location fetch fallback warning:', err?.message || err);
+    return res.json({
+      countryCode: 'US',
+      countryName: 'United States',
+      city: 'United States',
+      flag: '🇺🇸',
+      currencyCode: 'USD',
+      currencySymbol: '$',
+      isGps: false,
+      source: 'default',
+    });
   }
 });
 
