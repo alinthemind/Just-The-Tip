@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { COUNTRY_TIPPING_DATABASE, TippingCultureRule } from '../data/tippingCulture';
+import { COUNTRY_TIPPING_DATABASE, TippingCultureRule, getTippingRuleForCountry } from '../data/tippingCulture';
 import { Search, Utensils, Wine, Car, Coffee, Lightbulb, Ban, ChevronRight, Frown, Meh, Smile, SmilePlus } from 'lucide-react';
 import type { LucideIcon } from 'lucide-react';
 import { Card, IconTile, TileColor } from './ui';
@@ -11,15 +11,24 @@ const REGION_CONFIG: { id: RegionKey; label: string; icon: string }[] = [
   { id: 'all', label: 'All', icon: '🌐' },
   { id: 'americas', label: 'Americas', icon: '🌎' },
   { id: 'europe', label: 'Europe', icon: '🌍' },
-  { id: 'asia', label: 'Asia & Pacific', icon: '🌏' },
+  { id: 'asia', label: 'Asia Pacific', icon: '🌏' },
   { id: 'middle-east', label: 'Middle East', icon: '🕌' },
 ];
 
 const COUNTRY_REGION_MAP: Record<string, RegionKey> = {
+  // americas
   US: 'americas',
   CA: 'americas',
   MX: 'americas',
   BR: 'americas',
+  AR: 'americas',
+  CL: 'americas',
+  PE: 'americas',
+  CO: 'americas',
+  CR: 'americas',
+  DO: 'americas',
+  JM: 'americas',
+  // europe
   GB: 'europe',
   FR: 'europe',
   IT: 'europe',
@@ -29,26 +38,56 @@ const COUNTRY_REGION_MAP: Record<string, RegionKey> = {
   NL: 'europe',
   GR: 'europe',
   IE: 'europe',
+  PT: 'europe',
+  AT: 'europe',
+  BE: 'europe',
+  CZ: 'europe',
+  PL: 'europe',
+  HU: 'europe',
+  HR: 'europe',
+  DK: 'europe',
+  SE: 'europe',
+  NO: 'europe',
+  IS: 'europe',
+  TR: 'europe',
+  // asia
   JP: 'asia',
   KR: 'asia',
   CN: 'asia',
   HK: 'asia',
+  MO: 'asia',
   TW: 'asia',
   SG: 'asia',
   TH: 'asia',
   IN: 'asia',
   AU: 'asia',
   NZ: 'asia',
+  VN: 'asia',
+  ID: 'asia',
+  MY: 'asia',
+  PH: 'asia',
+  KH: 'asia',
+  LK: 'asia',
+  MV: 'asia',
+  FJ: 'asia',
+  // middle-east
   AE: 'middle-east',
+  IL: 'middle-east',
+  JO: 'middle-east',
+  QA: 'middle-east',
+  SA: 'middle-east',
+  OM: 'middle-east',
+  BH: 'middle-east',
+  EG: 'middle-east',
 };
 
 /** Four bars, one per service level, scaled against a 25% ceiling */
 const TipMeter: React.FC<{ country: TippingCultureRule; t: (k: string) => string }> = ({ country, t }) => {
   const tiers: Array<{ pct: number; icon: LucideIcon; label: string; bar: string }> = [
-    { pct: country.poorPercent ?? 0, icon: Frown, label: t('tierPoor'), bar: 'bg-[#8e8e93]' },
-    { pct: country.minPercent, icon: Meh, label: t('tierMinimum'), bar: 'bg-[#ff9500]' },
-    { pct: country.avgPercent, icon: Smile, label: t('tierAverage'), bar: 'bg-accent' },
-    { pct: country.highPercent, icon: SmilePlus, label: t('tierHigh'), bar: 'bg-[#34c759]' },
+    { pct: getTippingRuleForCountry(country.countryCode).poorPercent, icon: Frown, label: t('tierPoor'), bar: 'bg-[#8e8e93]' },
+    { pct: country.minPercent, icon: Meh, label: t('tierMinimum'), bar: 'bg-ig-orange' },
+    { pct: country.avgPercent, icon: Smile, label: t('tierAverage'), bar: 'ig-gradient' },
+    { pct: country.highPercent, icon: SmilePlus, label: t('tierHigh'), bar: 'bg-ig-purple' },
   ];
   const ceiling = Math.max(25, ...tiers.map((x) => x.pct));
   return (
@@ -86,17 +125,13 @@ export const CultureGuide: React.FC<{ currentLang?: LanguageCode }> = ({ current
   };
   const filteredCountries = allCountries.filter((c) => matches(c, filterRegion));
 
-  const [selectedCountry, setSelectedCountry] = useState<TippingCultureRule>(
-    filteredCountries[0] || COUNTRY_TIPPING_DATABASE['US']
-  );
+  // Nothing is selected until the user taps a country
+  const [selectedCountry, setSelectedCountry] = useState<TippingCultureRule | null>(null);
 
-  // Keep the selection inside the current filter
+  // Drop the selection if the current search or region hides it
   useEffect(() => {
-    if (
-      filteredCountries.length > 0 &&
-      !filteredCountries.some((c) => c.countryCode === selectedCountry?.countryCode)
-    ) {
-      setSelectedCountry(filteredCountries[0]);
+    if (selectedCountry && !filteredCountries.some((c) => c.countryCode === selectedCountry.countryCode)) {
+      setSelectedCountry(null);
     }
   }, [filterRegion, search]);
 
@@ -107,10 +142,10 @@ export const CultureGuide: React.FC<{ currentLang?: LanguageCode }> = ({ current
 
   const services: Array<{ icon: LucideIcon; color: TileColor; label: string; text: string }> = selectedCountry
     ? [
-        { icon: Utensils, color: 'pink', label: t('restaurants'), text: selectedCountry.restaurantAdvice },
+        { icon: Utensils, color: 'gradient', label: t('restaurants'), text: selectedCountry.restaurantAdvice },
         { icon: Wine, color: 'purple', label: t('bars'), text: selectedCountry.barAdvice },
-        { icon: Car, color: 'yellow', label: t('taxis'), text: selectedCountry.taxiAdvice },
-        { icon: Coffee, color: 'orange', label: t('cafes'), text: selectedCountry.counterCafeAdvice },
+        { icon: Car, color: 'blue', label: t('taxis'), text: selectedCountry.taxiAdvice },
+        { icon: Coffee, color: 'yellow', label: t('cafes'), text: selectedCountry.counterCafeAdvice },
       ]
     : [];
 
@@ -138,7 +173,7 @@ export const CultureGuide: React.FC<{ currentLang?: LanguageCode }> = ({ current
               onClick={() => setFilterRegion(reg.id)}
               className={`flex-shrink-0 inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-full text-[15px] font-medium transition-colors cursor-pointer ${
                 filterRegion === reg.id
-                  ? 'bg-zinc-900 text-white dark:bg-white dark:text-black'
+                  ? 'ig-gradient text-white'
                   : 'bg-white dark:bg-elevated text-zinc-700 dark:text-zinc-300'
               }`}
             >
@@ -165,7 +200,7 @@ export const CultureGuide: React.FC<{ currentLang?: LanguageCode }> = ({ current
               </div>
               {selectedCountry.isTippingDiscouraged && (
                 <span className="ml-auto" title={t('tippingNotCustomary')}>
-                  <IconTile icon={Ban} color="blue" />
+                  <IconTile icon={Ban} color="purple" />
                 </span>
               )}
             </div>
@@ -191,7 +226,7 @@ export const CultureGuide: React.FC<{ currentLang?: LanguageCode }> = ({ current
             <Card className="p-4 space-y-2">
               {selectedCountry.specialRules.map((rule, idx) => (
                 <div key={idx} className="flex items-start gap-2.5 text-[14px] leading-snug text-zinc-700 dark:text-zinc-300">
-                  <Lightbulb className="w-4 h-4 text-[#ff9500] mt-0.5 flex-shrink-0" />
+                  <Lightbulb className="w-4 h-4 text-ig-orange mt-0.5 flex-shrink-0" />
                   <span>{rule}</span>
                 </div>
               ))}
@@ -219,7 +254,7 @@ export const CultureGuide: React.FC<{ currentLang?: LanguageCode }> = ({ current
                   {c.countryName}
                 </span>
                 {c.isTippingDiscouraged ? (
-                  <Ban className="w-4 h-4 text-[#007aff]" aria-label={t('tippingNotCustomary')} />
+                  <Ban className="w-4 h-4 text-ig-purple dark:text-[#b67be0]" aria-label={t('tippingNotCustomary')} />
                 ) : (
                   <span className="text-[15px] tabular-nums text-zinc-400">{c.avgPercent}%</span>
                 )}

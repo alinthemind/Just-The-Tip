@@ -141,7 +141,7 @@ export const TipResults: React.FC<TipResultsProps> = ({
           {t('preTaxBasis')} {formatMoney(sym, tipBasisAmount)}
         </Chip>
         {tippingCulture.isTippingDiscouraged && (
-          <Chip icon={Ban} tone="blue">
+          <Chip icon={Ban} tone="purple">
             {t('tippingNotCustomary')}
           </Chip>
         )}
@@ -198,7 +198,7 @@ export const TipResults: React.FC<TipResultsProps> = ({
             onClick={onScanAnother}
             title={t('scanAnother')}
             aria-label={t('scanAnother')}
-            className="w-11 h-11 rounded-full bg-accent text-white flex items-center justify-center flex-shrink-0 active:scale-90 transition-transform cursor-pointer shadow-[0_6px_16px_-6px_rgba(255,45,85,0.7)]"
+            className="w-11 h-11 rounded-full ig-gradient text-white flex items-center justify-center flex-shrink-0 active:scale-90 transition-transform cursor-pointer shadow-[0_6px_16px_-6px_rgba(225,48,108,0.7)]"
           >
             <ScanLine className="w-5 h-5" />
           </button>
@@ -213,7 +213,7 @@ export const TipResults: React.FC<TipResultsProps> = ({
           aria-expanded={showCustoms}
           className="w-full flex items-center gap-3 px-4 py-3 cursor-pointer text-left"
         >
-          <IconTile icon={Lightbulb} color="yellow" />
+          <IconTile icon={Lightbulb} color="gradient" />
           <span className="flex-1 text-[17px] text-zinc-900 dark:text-white">
             {t('localCustoms')} <span className="ml-0.5">{receipt.detectedCountry?.flag}</span>
           </span>
@@ -300,7 +300,7 @@ export const TipResults: React.FC<TipResultsProps> = ({
                   <button
                     type="button"
                     onClick={handleSaveEdits}
-                    className="w-full mt-2 py-3 rounded-[14px] bg-accent text-white text-[17px] font-semibold flex items-center justify-center gap-2 active:scale-[0.98] transition-transform cursor-pointer"
+                    className="w-full mt-2 py-3 rounded-[14px] ig-gradient text-white text-[17px] font-semibold flex items-center justify-center gap-2 active:scale-[0.98] transition-transform cursor-pointer"
                   >
                     <Check className="w-5 h-5" />
                     {t('saveRecalculate')}

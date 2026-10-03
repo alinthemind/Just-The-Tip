@@ -114,7 +114,7 @@ function createReceiptSvg(
         ${
           extraFooter
             ? `<div style="font-size:10px; text-align:center; color:#52525b; margin-top:14px; border-top:1px dashed #d4d4d8; padding-top:8px;">
-                ${escapeXml(extraFooter)}
+                ${escapeXml(extraFooter).replace(/&lt;br\s*\/?&gt;/g, '<br/>')}
                </div>`
             : `<div style="font-size:10px; text-align:center; color:#71717a; margin-top:14px;">
                 *** THANK YOU FOR DINING WITH US ***
@@ -377,10 +377,10 @@ export const SAMPLE_RECEIPTS: SampleReceipt[] = [
     notes: 'Shanghai: Tipping is 0% and traditionally not customary in mainland China. Please pay exact bill amount.'
   },
 
-  // 7. Prime Steakhouse (Las Vegas, NV) - $145
+  // 7. Delilah supper club at Wynn (Las Vegas, NV) - $156
   {
-    id: 'las-vegas-steakhouse',
-    name: 'Prime Steakhouse (Bellagio Hotel)',
+    id: 'las-vegas-delilah',
+    name: 'Delilah (Wynn Las Vegas)',
     countryCode: 'US',
     countryName: 'United States',
     city: 'Las Vegas',
@@ -388,35 +388,35 @@ export const SAMPLE_RECEIPTS: SampleReceipt[] = [
     flag: '🇺🇸',
     currency: 'USD',
     currencySymbol: '$',
-    subtotal: 145.0,
-    tax: 12.14,
+    subtotal: 156.0,
+    tax: 13.07,
     serviceCharge: 0,
-    total: 157.14,
+    total: 169.07,
     date: '2026-09-29 21:00',
     items: [
-      { name: 'USDA Prime Filet Mignon', qty: 1, price: 78.0 },
-      { name: 'Chilean Sea Bass', qty: 1, price: 52.0 },
-      { name: 'Truffle Mashed Potatoes', qty: 1, price: 15.0 }
+      { name: 'Beef Wellington', qty: 1, price: 92.0 },
+      { name: 'Chicken Tenders & Caviar', qty: 1, price: 38.0 },
+      { name: 'Classic Martini', qty: 1, price: 26.0 }
     ],
     svgDataUri: createReceiptSvg(
-      'las-vegas-steakhouse',
-      'Prime Steakhouse (Bellagio)',
-      '3600 S Las Vegas Blvd, Las Vegas, NV 89109',
+      'las-vegas-delilah',
+      'Delilah Supper Club',
+      'Wynn Las Vegas, 3131 S Las Vegas Blvd, Las Vegas, NV 89109',
       '2026-09-29 21:00',
       [
-        { name: 'USDA Prime Filet Mignon', qty: 1, price: 78.0 },
-        { name: 'Chilean Sea Bass', qty: 1, price: 52.0 },
-        { name: 'Truffle Mashed Potatoes', qty: 1, price: 15.0 }
+        { name: 'Beef Wellington', qty: 1, price: 92.0 },
+        { name: 'Chicken Tenders & Caviar', qty: 1, price: 38.0 },
+        { name: 'Classic Martini', qty: 1, price: 26.0 }
       ],
-      145.0,
-      12.14,
+      156.0,
+      13.07,
       [],
       0,
-      157.14,
+      169.07,
       '$',
-      'Las Vegas, NV dining etiquette.<br/>Customary tip is 18% - 20% on pre-tax subtotal ($145.00).'
+      'Las Vegas, NV dining etiquette.<br/>Customary tip is 18% - 20% on pre-tax subtotal ($156.00).'
     ),
-    notes: 'Las Vegas, NV: Customary US tip is 18-20% calculated on pre-tax $145.'
+    notes: 'Las Vegas, NV: Customary US tip is 18-20% calculated on pre-tax $156.'
   },
 
   // 8. Sukiyabashi Jiro (Tokyo, Japan) - ¥88,000

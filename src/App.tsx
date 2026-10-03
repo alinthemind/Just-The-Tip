@@ -145,7 +145,7 @@ export default function App() {
     try {
       const loc = await requestBrowserGps((lateLoc) => {
         // A GPS fix that arrives after the IP fallback still wins, unless a scanned receipt set the location since
-        setUserLocation((prev) => (prev.source === 'receipt' ? prev : lateLoc));
+        setUserLocation((prev) => (prev.source === 'receipt' || prev.source === 'photo-gps' ? prev : lateLoc));
       });
       setUserLocation(loc);
 
@@ -464,6 +464,14 @@ export default function App() {
     }
   };
 
+  // Leaving a receipt drops its location and goes back to the device's (saved) location
+  const handleScanAnother = () => {
+    setCurrentReceipt(null);
+    if (userLocation.source === 'receipt' || userLocation.source === 'photo-gps') {
+      setUserLocation(getSavedLocation());
+    }
+  };
+
   const handleUpdateReceipt = (updated: ScannedReceiptData) => {
     setCurrentReceipt(updated);
   };
@@ -501,9 +509,9 @@ export default function App() {
             {toastMessage.type === 'error' ? (
               <AlertCircle className="w-5 h-5 text-[#ff3b30]" />
             ) : toastMessage.type === 'info' ? (
-              <Wifi className="w-5 h-5 text-[#007aff]" />
+              <Wifi className="w-5 h-5 text-ig-blue" />
             ) : (
-              <Navigation className="w-5 h-5 text-[#34c759]" fill="currentColor" />
+              <Navigation className="w-5 h-5 text-accent" fill="currentColor" />
             )}
             <span>{toastMessage.text}</span>
           </button>
@@ -533,7 +541,7 @@ export default function App() {
             {currentReceipt ? (
               <TipResults
                 receipt={currentReceipt}
-                onScanAnother={() => setCurrentReceipt(null)}
+                onScanAnother={handleScanAnother}
                 onUpdateReceipt={handleUpdateReceipt}
                 currentLang={currentLang}
               />
@@ -561,15 +569,6 @@ export default function App() {
         {/* Tab 3: World Etiquette Guide */}
         {activeTab === 'guide' && <CultureGuide currentLang={currentLang} />}
 
-        {/* Sponsored slot */}
-        <div
-          className="mt-10 w-full max-w-[320px] sm:max-w-[468px] h-[60px] mx-auto flex items-center justify-center rounded-[14px] bg-black/[0.03] dark:bg-white/[0.04]"
-          aria-label="Sponsored Content"
-        >
-          <span className="text-[11px] font-medium uppercase tracking-wider text-zinc-400 dark:text-zinc-600 select-none">
-            Sponsored
-          </span>
-        </div>
       </main>
 
       {/* Location Picker Modal */}

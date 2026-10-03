@@ -59,7 +59,7 @@ export const Header: React.FC<HeaderProps> = ({
           <div className="flex items-center gap-2 flex-shrink-0">
             <MushroomTipLogo size={22} />
             <h1 className="font-semibold text-[17px] tracking-tight text-zinc-900 dark:text-white whitespace-nowrap hidden xs:block sm:block">
-              Just the <span className="text-accent">Tip</span>
+              Just the <span className="ig-gradient-text">Tip</span>
             </h1>
           </div>
 

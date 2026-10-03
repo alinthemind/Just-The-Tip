@@ -216,6 +216,7 @@ export function setLocationFromReceipt(city: string, state = '', countryCode = '
     isGps: false,
     source: 'receipt',
   };
-  saveLocation(loc);
+  // Not saved: a receipt's location only applies while that receipt is open, so the stored
+  // location (used for fallbacks and on reload) always stays the device's or the user's choice
   return loc;
 }

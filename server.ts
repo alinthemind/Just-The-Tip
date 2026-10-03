@@ -104,7 +104,7 @@ function buildFallbackReceiptData(
       (sample.countryCode === 'JP' && (decodedStr.includes('Sukiyabashi') || decodedStr.includes('すきやばし') || decodedStr.includes('Jiro') || decodedStr.includes('次郎') || decodedStr.includes('Tokyo'))) ||
       (sample.countryCode === 'FR' && (decodedStr.includes('Robuchon') || decodedStr.includes('Joël') || decodedStr.includes('Paris'))) ||
       (sample.countryCode === 'US' && sample.city === 'San Francisco' && (decodedStr.includes('Bix') || decodedStr.includes('San Francisco') || decodedStr.includes('Zuni'))) ||
-      (sample.countryCode === 'US' && sample.city === 'Las Vegas' && (decodedStr.includes('Las Vegas') || decodedStr.includes('Bellagio')))
+      (sample.countryCode === 'US' && sample.city === 'Las Vegas' && (decodedStr.includes('Las Vegas') || decodedStr.includes('Delilah') || decodedStr.includes('Wynn')))
     ) {
       merchant = sample.name;
       preTaxSubtotal = sample.subtotal;
@@ -142,7 +142,7 @@ function buildFallbackReceiptData(
       detectedCity = 'Shanghai';
       countryCode = 'CN';
       countryName = 'China';
-    } else if (/las\s*vegas|bellagio/i.test(decodedStr)) {
+    } else if (/las\s*vegas|delilah|wynn|bellagio/i.test(decodedStr)) {
       detectedCity = 'Las Vegas';
       detectedState = 'NV';
       countryCode = 'US';

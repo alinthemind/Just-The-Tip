@@ -2,10 +2,17 @@
 
 @custom-variant dark (&:where(.dark, .dark *));
 
-/* Apple-style system palette: one accent (systemPink), grouped backgrounds, translucent fills */
+/* Apple-style layout tokens with Instagram brand colors */
 @theme {
-  --color-accent: #ff2d55;
-  --color-accent-dark: #ff375f;
+  /* Instagram palette */
+  --color-accent: #e1306c;
+  --color-accent-dark: #f0447f;
+  --color-ig-purple: #833ab4;
+  --color-ig-violet: #c13584;
+  --color-ig-red: #fd1d1d;
+  --color-ig-orange: #f77737;
+  --color-ig-yellow: #fcaf45;
+  --color-ig-blue: #405de6;
   --color-grouped: #f2f2f7;
   --color-elevated: #1c1c1e;
   --color-elevated-2: #2c2c2e;
@@ -66,7 +73,9 @@ input[type='range'].ios-slider {
   appearance: none;
   height: 4px;
   border-radius: 9999px;
-  background: linear-gradient(to right, var(--color-accent) var(--fill, 0%), rgb(120 120 128 / 0.2) var(--fill, 0%));
+  background:
+    linear-gradient(45deg, #f09433, #e6683c, #dc2743, #cc2366, #bc1888) 0 0 / var(--fill, 0%) 100% no-repeat,
+    rgb(120 120 128 / 0.2);
 }
 input[type='range'].ios-slider::-webkit-slider-thumb {
   -webkit-appearance: none;

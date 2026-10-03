@@ -9,9 +9,9 @@ export type TierKey = 'poor' | 'minimum' | 'average' | 'high' | 'custom';
 
 const TIER_META: Record<Exclude<TierKey, 'custom'>, { icon: LucideIcon; labelKey: string; tint: string }> = {
   poor: { icon: Frown, labelKey: 'tierPoor', tint: 'text-[#8e8e93]' },
-  minimum: { icon: Meh, labelKey: 'tierMinimum', tint: 'text-[#ff9500]' },
+  minimum: { icon: Meh, labelKey: 'tierMinimum', tint: 'text-ig-orange' },
   average: { icon: Smile, labelKey: 'tierAverage', tint: 'text-accent' },
-  high: { icon: SmilePlus, labelKey: 'tierHigh', tint: 'text-[#34c759]' },
+  high: { icon: SmilePlus, labelKey: 'tierHigh', tint: 'text-ig-purple dark:text-[#b67be0]' },
 };
 
 interface TipPanelProps {
@@ -72,7 +72,7 @@ export const TipPanel: React.FC<TipPanelProps> = ({
                 aria-pressed={isSelected}
                 className={`flex flex-col items-center gap-1 py-3 px-1 rounded-[16px] transition-all cursor-pointer active:scale-95 ${
                   isSelected
-                    ? 'bg-accent text-white shadow-[0_6px_16px_-6px_rgba(255,45,85,0.6)]'
+                    ? 'ig-gradient text-white shadow-[0_6px_16px_-6px_rgba(225,48,108,0.6)]'
                     : 'hover:bg-zinc-100 dark:hover:bg-elevated-2'
                 }`}
               >
@@ -134,7 +134,7 @@ export const TipPanel: React.FC<TipPanelProps> = ({
         <div className="flex items-start justify-between gap-3">
           <div className="min-w-0">
             <div className="text-[13px] font-medium text-zinc-500 dark:text-zinc-400">{t('total')}</div>
-            <div className="text-[44px] leading-[1.05] font-bold tracking-tight tabular-nums text-zinc-900 dark:text-white mt-0.5">
+            <div className="text-[44px] leading-[1.05] font-bold tracking-tight tabular-nums ig-gradient-text mt-0.5 w-fit">
               {formatMoney(currencySymbol, active.grandTotal)}
             </div>
           </div>

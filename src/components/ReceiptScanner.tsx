@@ -141,7 +141,7 @@ export const ReceiptScanner: React.FC<ReceiptScannerProps> = ({
               <div className="relative w-40 h-52 rounded-[18px] overflow-hidden bg-zinc-100 dark:bg-elevated-2 shadow-[0_12px_32px_-12px_rgba(0,0,0,0.35)]">
                 {previewImage && <img src={previewImage} alt="" className="w-full h-full object-cover" />}
                 <div
-                  className="absolute inset-x-0 top-2 h-[3px] bg-accent shadow-[0_0_16px_4px_rgba(255,45,85,0.55)] animate-scan"
+                  className="absolute inset-x-0 top-2 h-[3px] ig-gradient shadow-[0_0_16px_4px_rgba(225,48,108,0.55)] animate-scan"
                   style={{ ['--sweep' as any]: '190px' }}
                 />
               </div>
@@ -153,14 +153,14 @@ export const ReceiptScanner: React.FC<ReceiptScannerProps> = ({
             <>
               <ReceiptIllustration />
               <h2 className="mt-6 text-[28px] font-bold tracking-tight leading-tight text-zinc-900 dark:text-white">
-                {t('snapReceipt')} <span className="text-accent">{t('snapReceiptSub')}</span>
+                {t('snapReceipt')} <span className="ig-gradient-text">{t('snapReceiptSub')}</span>
               </h2>
 
               <div className="mt-6 grid grid-cols-2 gap-2.5">
                 <button
                   type="button"
                   onClick={openCamera}
-                  className="flex flex-col items-center justify-center gap-1.5 py-4 rounded-[16px] bg-accent text-white active:scale-[0.97] transition-transform cursor-pointer shadow-[0_8px_20px_-8px_rgba(255,45,85,0.7)]"
+                  className="flex flex-col items-center justify-center gap-1.5 py-4 rounded-[16px] ig-gradient text-white active:scale-[0.97] transition-transform cursor-pointer shadow-[0_8px_20px_-8px_rgba(225,48,108,0.7)]"
                 >
                   <Camera className="w-7 h-7" strokeWidth={1.8} />
                   <span className="text-[15px] font-semibold">{t('takePhoto')}</span>
@@ -177,11 +177,11 @@ export const ReceiptScanner: React.FC<ReceiptScannerProps> = ({
 
               <div className="mt-4 flex items-center justify-center gap-4 text-[12px] text-zinc-500 dark:text-zinc-400">
                 <span className="inline-flex items-center gap-1" title={t('excludesTax')}>
-                  <ShieldCheck className="w-3.5 h-3.5 text-[#34c759]" />
+                  <ShieldCheck className="w-3.5 h-3.5 text-accent" />
                   {t('preTaxBasis')}
                 </span>
                 <span className="inline-flex items-center gap-1" title={t('privacyBadge')}>
-                  <Lock className="w-3.5 h-3.5 text-[#007aff]" />
+                  <Lock className="w-3.5 h-3.5 text-ig-purple dark:text-[#b67be0]" />
                   {t('zeroHistory')}
                 </span>
               </div>

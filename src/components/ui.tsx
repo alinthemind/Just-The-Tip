@@ -20,15 +20,16 @@ export const SectionCaption: React.FC<{ children: React.ReactNode; action?: Reac
 
 const TILE_COLORS = {
   pink: 'bg-accent',
-  blue: 'bg-[#007aff]',
+  gradient: 'ig-gradient',
+  blue: 'bg-ig-blue',
   green: 'bg-[#34c759]',
-  orange: 'bg-[#ff9500]',
-  purple: 'bg-[#af52de]',
+  orange: 'bg-ig-orange',
+  purple: 'bg-ig-purple',
   teal: 'bg-[#30b0c7]',
-  indigo: 'bg-[#5856d6]',
+  indigo: 'bg-[#5851db]',
   gray: 'bg-[#8e8e93]',
-  red: 'bg-[#ff3b30]',
-  yellow: 'bg-[#ffcc00]',
+  red: 'bg-ig-red',
+  yellow: 'bg-ig-yellow',
 } as const;
 export type TileColor = keyof typeof TILE_COLORS;
 
@@ -121,14 +122,15 @@ export const IconButton: React.FC<
 export const Chip: React.FC<{
   icon: LucideIcon;
   children: React.ReactNode;
-  tone?: 'green' | 'amber' | 'blue' | 'pink' | 'gray';
+  tone?: 'green' | 'amber' | 'blue' | 'pink' | 'purple' | 'gray';
   title?: string;
 }> = ({ icon: Icon, children, tone = 'gray', title }) => {
   const tones = {
     green: 'bg-[#34c759]/12 text-[#248a3d] dark:text-[#30d158]',
-    amber: 'bg-[#ff9500]/12 text-[#c93400] dark:text-[#ff9f0a]',
-    blue: 'bg-[#007aff]/12 text-[#0062cc] dark:text-[#409cff]',
+    amber: 'bg-ig-orange/12 text-[#c4501a] dark:text-ig-orange',
+    blue: 'bg-ig-blue/12 text-ig-blue dark:text-[#7d93ff]',
     pink: 'bg-accent/12 text-accent dark:text-accent-dark',
+    purple: 'bg-ig-purple/12 text-ig-purple dark:text-[#b67be0]',
     gray: 'bg-[#767680]/12 text-zinc-600 dark:text-zinc-300',
   };
   return (
@@ -156,7 +158,7 @@ export const Switch: React.FC<{ checked: boolean; onChange: (v: boolean) => void
     title={label}
     onClick={() => onChange(!checked)}
     className={`relative w-[51px] h-[31px] rounded-full transition-colors flex-shrink-0 cursor-pointer ${
-      checked ? 'bg-[#34c759]' : 'bg-[#787880]/20 dark:bg-[#787880]/36'
+      checked ? 'ig-gradient' : 'bg-[#787880]/20 dark:bg-[#787880]/36'
     }`}
   >
     <span

@@ -80,7 +80,7 @@ ${t('total')}: ${formatMoney(currencySymbol, totalWithTip)} (${currencyCode})
           title={t('roundUp')}
           aria-label={t('roundUp')}
           className={`w-8 h-8 rounded-full flex items-center justify-center transition-colors cursor-pointer active:scale-90 ${
-            roundUpPerPerson ? 'bg-accent text-white' : 'bg-[#767680]/12 dark:bg-[#767680]/24 text-zinc-500 dark:text-zinc-300'
+            roundUpPerPerson ? 'ig-gradient text-white' : 'bg-[#767680]/12 dark:bg-[#767680]/24 text-zinc-500 dark:text-zinc-300'
           }`}
         >
           <ArrowUpToLine className="w-4 h-4" />

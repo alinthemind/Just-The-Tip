@@ -78,7 +78,7 @@ export const ManualCalculator: React.FC<ManualCalculatorProps> = ({
         </div>
         {rule.isTippingDiscouraged && (
           <div className="mt-3 flex justify-center">
-            <Chip icon={Ban} tone="blue" title={rule.cultureSummary}>
+            <Chip icon={Ban} tone="purple" title={rule.cultureSummary}>
               {t('tippingNotCustomary')}
             </Chip>
           </div>
