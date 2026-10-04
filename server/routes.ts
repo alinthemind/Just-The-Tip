@@ -11,6 +11,9 @@ import { buildFallbackReceiptData, finalizeScanResult } from '../src/utils/recei
 const app = express();
 app.use(express.json({ limit: '20mb' }));
 
+// OpenStreetMap's usage policy asks every app to identify itself
+const OSM_USER_AGENT = 'JustTheTip/1.0 (+https://justthetiptip.vercel.app)';
+
 // Without a key, the Gemini client goes looking for Google Cloud credentials (which can stall on a host),
 // so skip it entirely and use the built-in fallbacks
 const hasGeminiKey = Boolean(process.env.GEMINI_API_KEY);
@@ -41,7 +44,7 @@ app.post('/api/reverse-geocode', async (req: Request, res: Response) => {
         `https://nominatim.openstreetmap.org/reverse?format=json&lat=${latitude}&lon=${longitude}&zoom=10&addressdetails=1`,
         {
           headers: {
-            'User-Agent': 'GlobalTip-App/1.0 (contact: info@globaltip.local)',
+            'User-Agent': OSM_USER_AGENT,
             'Accept-Language': 'en',
           },
           signal: controller.signal,
@@ -458,7 +461,8 @@ app.get('/api/culture/:countryCode', (req: Request, res: Response) => {
 // with a Google Maps key it can look up the venue's rating and reviews
 const mapsKey = process.env.GOOGLE_MAPS_API_KEY || '';
 app.get('/api/config', (_req: Request, res: Response) => {
-  res.json({ ai: hasGeminiKey, places: Boolean(mapsKey) });
+  // Venue lookup always works: Google Places with a key (ratings, reviews), else OpenStreetMap (free)
+  res.json({ ai: hasGeminiKey, places: true, placesProvider: mapsKey ? 'google' : 'osm' });
 });
 
 // Google place types to look for nearby, per kind of service (taxis have no venue)
@@ -482,8 +486,8 @@ const PLACE_FIELDS = [
 //   near:  a precise phone position at scan time; biases the search tightly, or (with no query) finds the
 //          nearest venue of the receipt's kind of service
 app.post('/api/venue', async (req: Request, res: Response) => {
-  if (!mapsKey) return res.status(404).json({ error: 'Venue lookup is not configured' });
   const { query, latitude, longitude, near, serviceType, lang } = req.body || {};
+  if (!mapsKey) return osmVenue(req, res);
   const hasQuery = typeof query === 'string' && query.trim().length > 0;
   const nearOk = near && Number.isFinite(near.latitude) && Number.isFinite(near.longitude);
   const nearbyTypes = NEARBY_TYPES[serviceType] || NEARBY_TYPES.restaurant;
@@ -535,6 +539,7 @@ app.post('/api/venue', async (req: Request, res: Response) => {
     if (!place) return res.json({ found: false });
     res.json({
       found: true,
+      source: 'google',
       // Found only by being the closest venue: the app asks the user to check it's the right place
       matchedBy: hasQuery ? 'receipt' : 'location',
       name: place.displayName?.text,
@@ -606,5 +611,170 @@ app.use('/api', (err: any, _req: Request, res: Response, next: (err?: any) => vo
 app.use('/api', (_req: Request, res: Response) => {
   res.status(404).json({ error: 'Unknown API route' });
 });
+
+// OpenStreetMap place categories per kind of service, for "nearest venue" searches
+const OSM_AMENITIES: Record<string, string> = {
+  restaurant: 'restaurant|fast_food|food_court',
+  bar: 'bar|pub|biergarten|nightclub',
+  cafe: 'cafe|ice_cream',
+  beauty: '',
+  hotel: '',
+};
+
+const metersBetween = (a: { lat: number; lon: number }, b: { lat: number; lon: number }) => {
+  const rad = Math.PI / 180;
+  const x = (b.lon - a.lon) * rad * Math.cos(((a.lat + b.lat) / 2) * rad);
+  const y = (b.lat - a.lat) * rad;
+  return Math.sqrt(x * x + y * y) * 6371000;
+};
+
+/** Whether two venue names are the same place's name ("BLUE BOTTLE COFFEE" vs "Blue Bottle Coffee", "The Red Lion" vs "Red Lion") */
+function sameVenueName(a: string, b: string): boolean {
+  const norm = (s: string) => s.toLowerCase().normalize('NFKD').replace(/[\u0300-\u036f]/g, '').replace(/^the\s+/, '').replace(/[^\p{L}\p{N}]+/gu, '');
+  const x = norm(a);
+  const y = norm(b);
+  return Boolean(x && y) && (x.includes(y) || y.includes(x));
+}
+
+/** VenueInfo from OpenStreetMap tags (no ratings or reviews: OSM doesn't have them) */
+function osmToVenue(name: string, lat: number, lon: number, tags: Record<string, string>, address: string | undefined, matchedBy: 'receipt' | 'location') {
+  const cuisine = tags.cuisine ? tags.cuisine.split(';')[0].replace(/_/g, ' ') : '';
+  const kind = (tags.amenity || tags.shop || tags.tourism || tags.leisure || '').replace(/_/g, ' ');
+  return {
+    found: true,
+    source: 'osm',
+    matchedBy,
+    name,
+    address,
+    type: [cuisine, kind].filter(Boolean).join(' ').replace(/^\w/, (c) => c.toUpperCase()) || undefined,
+    phone: tags.phone || tags['contact:phone'],
+    website: tags.website || tags['contact:website'],
+    // OpenStreetMap's own notation, e.g. "Mo-Fr 11:00-22:00; Sa 12:00-23:00"
+    openingHours: tags.opening_hours,
+    mapsUri: `https://www.google.com/maps/search/?api=1&query=${lat},${lon}`,
+    reviewsUri: undefined,
+    writeReviewUri: undefined,
+    reviews: [],
+  };
+}
+
+/**
+ * Free venue lookup on OpenStreetMap: Nominatim search for the receipt's details (biased to the phone's
+ * position when known), or Overpass for the nearest venue of that kind when the receipt names nothing.
+ */
+async function osmVenue(req: Request, res: Response) {
+  const { query, clues = {}, near, serviceType, lang } = req.body || {};
+  const hasQuery = typeof query === 'string' && query.trim().length > 0;
+  const nearOk = near && Number.isFinite(near.latitude) && Number.isFinite(near.longitude);
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), 7000);
+  const text = (v: unknown) => (typeof v === 'string' ? v.trim().slice(0, 120) : '');
+  const headers = { 'User-Agent': OSM_USER_AGENT, 'Accept-Language': typeof lang === 'string' ? lang : 'en' };
+  try {
+    if (hasQuery) {
+      const nominatimAll = async (params: Record<string, string>, limit = 1): Promise<any[]> => {
+        const qs = new URLSearchParams({ ...params, format: 'jsonv2', limit: String(limit), extratags: '1', addressdetails: '0' });
+        const r = await fetch(`https://nominatim.openstreetmap.org/search?${qs}`, { headers, signal: controller.signal });
+        return r.ok ? await r.json() : [];
+      };
+      const nominatim = async (params: Record<string, string>) => (await nominatimAll(params))[0];
+      const isVenue = (hit: any) => hit && !['highway', 'place', 'boundary', 'landuse', 'building'].includes(hit.category);
+      const fromNominatim = (hit: any) => {
+        const name = hit.name || hit.display_name.split(',')[0];
+        const address = hit.display_name.split(',').slice(hit.name ? 1 : 0, 5).join(',').trim();
+        return osmToVenue(name, Number(hit.lat), Number(hit.lon), { ...(hit.extratags || {}), [hit.category]: hit.type }, address, 'receipt');
+      };
+      const name = text(clues.name);
+      const street = text(clues.address);
+
+      // With a street address: find that spot, then the business with that name right there. First the
+      // fast search (name + city, the match nearest the address within 250 m), then Overpass within 300 m
+      // (businesses only, kept short: the public server can be slow in dense cities). A chain's other branch
+      // elsewhere would show the wrong hours, so no match, or no answer in time, means "not found".
+      if (name && street && /\d/.test(street)) {
+        const spot = await nominatim({ q: [street, text(clues.city)].filter((v) => v && !street.includes(v)).join(', ') || street });
+        // Often the address search lands on the business itself: done in one request
+        if (isVenue(spot) && sameVenueName(spot.name || '', name)) return res.json(fromNominatim(spot));
+        if (spot) {
+          const here = { lat: Number(spot.lat), lon: Number(spot.lon) };
+          await new Promise((r) => setTimeout(r, 1000)); // Nominatim: one request per second
+          const sameName = await nominatimAll({ q: [name, text(clues.city)].filter(Boolean).join(' ') }, 10);
+          const closest = sameName
+            .filter(isVenue)
+            .map((h) => ({ h, m: metersBetween(here, { lat: Number(h.lat), lon: Number(h.lon) }) }))
+            .sort((a, b) => a.m - b.m)[0];
+          if (closest && closest.m <= 250 && sameVenueName(closest.h.name || '', name)) return res.json(fromNominatim(closest.h));
+
+          const n = name.replace(/[\\"^$.*+?()[\]{}|]/g, '\\$&');
+          const around = `around:300,${spot.lat},${spot.lon}`;
+          const ql = `[out:json][timeout:3];(nwr(${around})["amenity"]["name"~"${n}",i];nwr(${around})["shop"]["name"~"${n}",i];nwr(${around})["tourism"]["name"~"${n}",i];);out center tags 1;`;
+          const quick = new AbortController();
+          const quickTimer = setTimeout(() => quick.abort(), 3500);
+          try {
+            const r = await fetch('https://overpass-api.de/api/interpreter', {
+              method: 'POST',
+              headers: { ...headers, 'Content-Type': 'application/x-www-form-urlencoded' },
+              body: `data=${encodeURIComponent(ql)}`,
+              signal: quick.signal,
+            });
+            const el = (r.ok ? (await r.json()).elements || [] : [])[0];
+            if (!el) return res.json({ found: false });
+            const tags = el.tags || {};
+            const address = [tags['addr:housenumber'], tags['addr:street'], tags['addr:city']].filter(Boolean).join(' ') || street;
+            return res.json(osmToVenue(tags.name, el.lat ?? el.center?.lat, el.lon ?? el.center?.lon, tags, address, 'receipt'));
+          } catch {
+            return res.json({ found: false });
+          } finally {
+            clearTimeout(quickTimer);
+          }
+        }
+      }
+
+      // Otherwise the name with the city, then the full query (Nominatim allows one request per second)
+      const attempts = [...new Set([[name, text(clues.city)].filter(Boolean).join(' '), query.trim().slice(0, 200)])].filter((q) => q.length > 2);
+      for (const [i, q] of attempts.entries()) {
+        if (i > 0) await new Promise((r) => setTimeout(r, 1000));
+        const params: Record<string, string> = { q };
+        if (nearOk) {
+          const d = 0.02; // ~2 km box around the phone, preferred but not required
+          params.viewbox = `${near.longitude - d},${near.latitude + d},${near.longitude + d},${near.latitude - d}`;
+        }
+        const hit = await nominatim(params);
+        if (isVenue(hit)) return res.json(fromNominatim(hit));
+      }
+      return res.json({ found: false });
+    }
+    if (!nearOk || serviceType === 'taxi') return res.status(400).json({ error: 'A search query or position is required' });
+    const radius = Math.min(250, Math.max(60, Number(near.accuracy) * 2 || 100));
+    const filter =
+      serviceType === 'beauty'
+        ? '["shop"~"^(beauty|hairdresser|massage|cosmetics)$"]'
+        : serviceType === 'hotel'
+          ? '["tourism"~"^(hotel|hostel|guest_house|motel)$"]'
+          : `["amenity"~"^(${OSM_AMENITIES[serviceType] || OSM_AMENITIES.restaurant})$"]`;
+    const ql = `[out:json][timeout:5];nwr(around:${radius},${near.latitude},${near.longitude})${filter}["name"];out center tags 15;`;
+    const r = await fetch('https://overpass-api.de/api/interpreter', {
+      method: 'POST',
+      headers: { ...headers, 'Content-Type': 'application/x-www-form-urlencoded' },
+      body: `data=${encodeURIComponent(ql)}`,
+      signal: controller.signal,
+    });
+    const data: any = r.ok ? await r.json() : { elements: [] };
+    const here = { lat: near.latitude, lon: near.longitude };
+    const nearest = (data.elements || [])
+      .map((e: any) => ({ e, lat: e.lat ?? e.center?.lat, lon: e.lon ?? e.center?.lon }))
+      .filter((x: any) => Number.isFinite(x.lat))
+      .sort((a: any, b: any) => metersBetween(here, a) - metersBetween(here, b))[0];
+    if (!nearest) return res.json({ found: false });
+    const t = nearest.e.tags || {};
+    const address = [t['addr:housenumber'], t['addr:street'], t['addr:city']].filter(Boolean).join(' ') || undefined;
+    return res.json(osmToVenue(t.name, nearest.lat, nearest.lon, t, address, 'location'));
+  } catch (err: any) {
+    console.warn('OpenStreetMap lookup error:', err?.message || err);
+    res.status(502).json({ error: 'Venue lookup failed' });
+  } finally {
+    clearTimeout(timeout);
+  }
+}
 
 export default app;

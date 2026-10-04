@@ -3,7 +3,7 @@ import { AlertTriangle, BadgePercent, Clock, ExternalLink, Globe, HandCoins, Loc
 import type { LucideIcon } from 'lucide-react';
 import { ScannedReceiptData } from '../types';
 import { Card, IconTile, SectionCaption, TileColor } from './ui';
-import { isRealVenueName, lookupVenue, mapsSearchUrl, VenueInfo } from '../utils/venue';
+import { isRealVenueName, lookupVenue, mapsSearchUrl, VenueInfo, venueSearchQuery } from '../utils/venue';
 import { offerSentences, Offers, serviceSentences, tippingSentences } from '../utils/venueText';
 
 // Google Places review languages for the app's languages (Klingon, Vulcan and Latin read English)
@@ -20,6 +20,10 @@ const venueClues = (receipt: ScannedReceiptData) => ({
 /** Looks the venue up on Google once per receipt (only when a Maps key is set and the name is real) */
 export function useVenue(receipt: ScannedReceiptData, lang: string): VenueInfo | null {
   const [venue, setVenue] = useState<VenueInfo | null>(null);
+  // Look up once per receipt: by its details when it has them (a position that arrives later doesn't
+  // trigger a second, billed lookup), otherwise by the position once it arrives
+  const query = venueSearchQuery(venueClues(receipt));
+  const lookupKey = query ?? (receipt.venueFix ? `near:${receipt.venueFix.latitude},${receipt.venueFix.longitude}` : '');
   useEffect(() => {
     let alive = true;
     setVenue(null);
@@ -35,7 +39,8 @@ export function useVenue(receipt: ScannedReceiptData, lang: string): VenueInfo |
     return () => {
       alive = false;
     };
-  }, [receipt.merchantName, receipt.venueAddress, receipt.venuePhone, receipt.city, receipt.latitude, receipt.longitude, receipt.locationSource, receipt.venueFix, receipt.serviceType, lang]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- keyed on what identifies the venue
+  }, [lookupKey, receipt.serviceType, lang]);
   return venue;
 }
 
@@ -117,7 +122,8 @@ export const VenueSummary: React.FC<{ receipt: ScannedReceiptData; venue: VenueI
   const address = venue?.address || receipt.venueAddress;
   const phone = venue?.phone || receipt.venuePhone;
   const tipNotes = receipt.receiptTipNotes || [];
-  const todayHours = venue?.hours?.[(new Date().getDay() + 6) % 7];
+  const todayHours = venue?.hours?.[(new Date().getDay() + 6) % 7] || venue?.openingHours;
+  const fromGoogle = venue?.source !== 'osm';
   const subline = [venue?.type, venue?.priceLevel ? '$'.repeat(venue.priceLevel) : '', venue?.openNow == null ? '' : t(venue.openNow ? 'openNow' : 'closedNow')]
     .filter(Boolean)
     .join(' · ');
@@ -208,7 +214,7 @@ export const VenueSummary: React.FC<{ receipt: ScannedReceiptData; venue: VenueI
           </div>
         )}
 
-        {(venue || tipNotes.length > 0 || receipt.serviceChargeIncluded) && (
+        {((venue && fromGoogle) || tipNotes.length > 0 || receipt.serviceChargeIncluded) && (
           <div>
             <SubHeading icon={HandCoins}>{t('tipInfo')}</SubHeading>
             <div className="space-y-2">
@@ -224,7 +230,9 @@ export const VenueSummary: React.FC<{ receipt: ScannedReceiptData; venue: VenueI
               {tipping.map((q, i) => (
                 <Quote key={`r${i}`} text={q.text} author={q.author} authorUri={q.authorUri} when={q.when} />
               ))}
-              {venue && tipping.length === 0 && <p className="text-[14px] text-zinc-500 dark:text-zinc-400">{t('noTippingMentions')}</p>}
+              {venue && fromGoogle && tipping.length === 0 && (
+                <p className="text-[14px] text-zinc-500 dark:text-zinc-400">{t('noTippingMentions')}</p>
+              )}
             </div>
           </div>
         )}
@@ -237,7 +245,13 @@ export const VenueSummary: React.FC<{ receipt: ScannedReceiptData; venue: VenueI
                 <ExternalLink className="w-3.5 h-3.5" />
               </a>
             )}
-            <span className="text-zinc-400">Google Maps</span>
+            {fromGoogle ? (
+              <span className="text-zinc-400">Google Maps</span>
+            ) : (
+              <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener noreferrer" className="text-zinc-400">
+                © OpenStreetMap contributors
+              </a>
+            )}
           </div>
         )}
       </Card>

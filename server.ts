@@ -18,6 +18,15 @@ const __dirname = path.dirname(__filename);
 const app = express();
 const port = parseInt(process.env.PORT || '3000', 10);
 
+// Cross-origin isolation lets PaddleOCR's WebAssembly use several CPU cores (~25% faster scans).
+// "credentialless" keeps CDN scripts and images loading; browsers without it (Safari) just run single-threaded.
+// Same headers as vercel.json.
+app.use((_req, res, next) => {
+  res.setHeader('Cross-Origin-Opener-Policy', 'same-origin');
+  res.setHeader('Cross-Origin-Embedder-Policy', 'credentialless');
+  next();
+});
+
 // Dev only: a phone opening http://<LAN-IP>:port is sent to https so the browser allows location access.
 // Proxied hosts (Google AI Studio, production) never match: they use public hostnames and terminate TLS upstream.
 app.use((req, res, next) => {

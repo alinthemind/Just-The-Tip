@@ -57,6 +57,18 @@ function getService(): Promise<PaddleOcrService> {
   return servicePromise;
 }
 
+/** Start PaddleOCR up in the background, but only if its models are already on the device (no download) */
+export function warmPaddleIfCached(): void {
+  if (servicePromise) return;
+  caches
+    .open(CACHE_NAME)
+    .then((cache) => Promise.all(Object.values(MODEL_FILES).map((url) => cache.match(url))))
+    .then((hits) => {
+      if (hits.every(Boolean)) prefetchPaddleOcr();
+    })
+    .catch(() => {});
+}
+
 /** Start loading PaddleOCR in the background (e.g. when the phone is in China or Japan) */
 export function prefetchPaddleOcr(): void {
   getService().catch(() => {});

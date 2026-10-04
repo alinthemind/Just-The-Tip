@@ -1,6 +1,6 @@
 import { createWorker } from 'tesseract.js';
 import { parseReceiptText, ParsedReceiptTextResult, receiptTextScore } from './receiptParser';
-import { prefetchPaddleOcr, recognizeWithPaddle } from './paddleOcr';
+import { prefetchPaddleOcr, recognizeWithPaddle, warmPaddleIfCached } from './paddleOcr';
 
 let workerPromise: Promise<any> | null = null;
 // Languages the cached worker is currently loaded with
@@ -58,6 +58,11 @@ export function prefetchOcrModels(hints: OcrHints): void {
     .finally(() => {
       prefetching = null;
     });
+}
+
+/** Start the OCR engine and its English data in the background, so the first scan doesn't wait for it */
+export function prewarmOcr(): void {
+  getOcrWorker().catch(() => {});
 }
 
 async function recognizeWith(worker: any, langs: string, canvas: HTMLCanvasElement): Promise<{ text: string; confidence: number }> {
@@ -229,27 +234,24 @@ export async function runClientOcr(
     if (onProgress) onProgress(40, 'stepOcrInit');
     // Don't switch models underneath a background prefetch
     if (prefetching) await Promise.race([prefetching, new Promise((r) => setTimeout(r, 20000))]);
-    const worker = await getOcrWorker();
-    if (!worker) {
-      return parseReceiptText('');
-    }
+    // Tesseract starts loading now but is only waited for when a pass needs it
+    const workerPromise = getOcrWorker();
+    let worker: any = null;
+    const tesseract = async () => (worker ??= await workerPromise);
 
     if (onProgress) onProgress(60, 'stepRecognizing');
     const started = Date.now();
-
-    // Pass 1: English, which also reads Latin-script receipts (Europe, the Americas...)
-    let best = await recognizeWith(worker, 'eng', canvas);
-    let bestScore = receiptTextScore(best.text);
-    // A confident English read with a labelled amount is a Latin-script receipt: no other script needed.
-    // (English OCR of Asian scripts scores ~25-45% confidence; real Latin receipts ~80%+.)
-    const englishIsRight = bestScore >= 2 && best.confidence >= 70;
-
-    // Not a Latin-script receipt: Chinese and Japanese go to PaddleOCR, which reads thermal-printed CJK
-    // far better than Tesseract (whose Chinese models stay as the fallback). Korean and Thai, which this
-    // PaddleOCR model doesn't cover, go straight to Tesseract when the hints point there.
     const hintedLang = LANG_FOR_APP[hints.appLang || ''] || LANG_FOR_COUNTRY[hints.countryCode || ''];
+    const cjkHint = Boolean(hintedLang && CJK_FAMILY.includes(hintedLang));
+    // Korean and Thai, which this PaddleOCR model doesn't cover, go to Tesseract's script models
+    const otherScriptHint = Boolean(hintedLang && !CJK_FAMILY.includes(hintedLang));
+
+    let best = { text: '', confidence: 0 };
+    let bestScore = -1;
+    let englishIsRight = false;
     let paddleRead = false;
-    if (bestScore < GOOD_ENOUGH_SCORE && !englishIsRight && !(hintedLang && !CJK_FAMILY.includes(hintedLang))) {
+    // PaddleOCR reads thermal-printed Chinese and Japanese far better than Tesseract, and English too
+    const tryPaddle = async () => {
       if (onProgress) onProgress(70, 'stepOtherLanguage');
       try {
         const budgetLeft = Math.max(5000, OCR_TIME_BUDGET_MS - (Date.now() - started));
@@ -263,7 +265,31 @@ export async function runClientOcr(
       } catch (err) {
         console.warn('PaddleOCR unavailable, using Tesseract:', err);
       }
+    };
+
+    // The phone or the app language points to Chinese/Japanese: read with PaddleOCR straight away
+    if (cjkHint) await tryPaddle();
+
+    // English pass (Latin-script receipts: Europe, the Americas...), unless PaddleOCR already nailed it.
+    // Meanwhile PaddleOCR starts up if its models are already on the device (costs no download).
+    if (bestScore < GOOD_ENOUGH_SCORE) {
+      if (!paddleRead && !otherScriptHint) warmPaddleIfCached();
+      const engine = await tesseract();
+      if (engine) {
+        const english = await recognizeWith(engine, 'eng', canvas);
+        const score = receiptTextScore(english.text);
+        if (score > bestScore) {
+          best = english;
+          bestScore = score;
+        }
+        // A confident English read with a labelled amount is a Latin-script receipt: no other script needed.
+        // (English OCR of Asian scripts scores ~25-45% confidence; real Latin receipts ~80%+.)
+        englishIsRight = score >= 2 && english.confidence >= 70;
+      }
     }
+
+    // Not a Latin-script receipt and no hint: try PaddleOCR (Chinese/Japanese) before Tesseract's scripts
+    if (!paddleRead && bestScore < GOOD_ENOUGH_SCORE && !englishIsRight && !otherScriptHint) await tryPaddle();
 
     // Other scripts only if that didn't produce a convincing receipt. Confidence alone can't tell
     // scripts apart, so each attempt is judged by how many labelled amounts it finds.
@@ -280,8 +306,10 @@ export async function runClientOcr(
         const sibling = !hinted && CJK_FAMILY.includes(winner) && CJK_FAMILY.includes(lang);
         if (bestScore >= GOOD_ENOUGH_SCORE && !sibling) break;
         if (onProgress) onProgress(75, 'stepOtherLanguage');
+        const engine = await tesseract();
+        if (!engine) break;
         try {
-          const attempt = await recognizeWith(worker, `${lang}+eng`, canvas);
+          const attempt = await recognizeWith(engine, `${lang}+eng`, canvas);
           const score = receiptTextScore(attempt.text);
           // On a tie, Japanese wins if it found real kana (which the Chinese models turn into noise)
           const kanaTieBreak = lang === 'jpn' && score === bestScore && (attempt.text.match(/[\u3040-\u30ff]/g) || []).length >= 6;

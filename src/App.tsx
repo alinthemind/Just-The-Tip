@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { ActiveTab, GpsErrorCode, ScannedReceiptData, UserLocation } from './types';
 import { getSavedLocation, getVenueFix, requestBrowserGps, saveLocation, setManualLocation, setLocationFromReceipt } from './utils/geolocation';
 import { getTippingRuleForCountry, getServiceTiers, serviceAdvice, SERVICE_TYPES, ServiceType } from './data/tippingCulture';
-import { prefetchOcrModels, runClientOcr } from './utils/ocr';
+import { prefetchOcrModels, prewarmOcr, runClientOcr } from './utils/ocr';
 import { shrinkForUpload } from './utils/uploadImage';
 import { cloudAiAvailable } from './utils/serverConfig';
 import { receiptOffers, receiptTipLines } from './utils/venueText';
@@ -98,6 +98,12 @@ export default function App() {
   // Location callbacks outlive renders, so they read whether a receipt is open from a ref
   const receiptOpenRef = useRef(false);
   receiptOpenRef.current = currentReceipt !== null || isScanning;
+
+  // Start the OCR engine once the page has settled, so the first scan doesn't wait for it to load
+  useEffect(() => {
+    const idle = (window as any).requestIdleCallback || ((cb: () => void) => setTimeout(cb, 1500));
+    idle(() => prewarmOcr(), { timeout: 4000 });
+  }, []);
 
   // Once the location is known, fetch the OCR model for that country's script in the background
   useEffect(() => {
@@ -553,7 +559,6 @@ export default function App() {
         isFallback: data.isFallback,
         needsReview: Boolean(data.needsReview) || (preTaxSubtotal <= 0 && total <= 0),
         // The phone's position only identifies the venue if the receipt is from the country the phone is in
-        venueFix: !clientOcrResult?.countryCode || clientOcrResult.countryCode === userLocation.countryCode ? await venueFixPromise : null,
         venueAddress: clientOcrResult?.address,
         venuePhone: clientOcrResult?.phone,
         latitude: candidateLat,
@@ -564,6 +569,14 @@ export default function App() {
       };
 
       setCurrentReceipt(newReceipt);
+
+      // The precise position can take a few seconds (satellite fix); show the result now and attach it
+      // when it arrives, so the venue lookup can use it. Only if the receipt is from the phone's country.
+      if (!clientOcrResult?.countryCode || clientOcrResult.countryCode === userLocation.countryCode) {
+        venueFixPromise.then((venueFix) => {
+          if (venueFix) setCurrentReceipt((r) => (r && r.id === newReceipt.id ? { ...r, venueFix } : r));
+        });
+      }
     } catch (err: any) {
       console.error('Scan error:', err);
       setScanError(err.message || t('errGeneric'));

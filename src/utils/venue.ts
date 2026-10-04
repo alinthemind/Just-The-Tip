@@ -11,6 +11,8 @@ export interface VenueReview {
 
 export interface VenueInfo {
   found: boolean;
+  /** Google Places (ratings, reviews) or OpenStreetMap (free; no ratings or reviews) */
+  source?: 'google' | 'osm';
   /** 'location': found only as the closest venue to the phone, so the user should check it */
   matchedBy?: 'receipt' | 'location';
   name?: string;
@@ -25,8 +27,10 @@ export interface VenueInfo {
   priceLevel?: number;
   about?: string;
   openNow?: boolean;
-  /** Opening hours per day, Monday first, already in the app's language */
+  /** Opening hours per day, Monday first, already in the app's language (Google) */
   hours?: string[];
+  /** Opening hours in OpenStreetMap notation, e.g. "Mo-Fr 11:00-22:00" */
+  openingHours?: string;
   phone?: string;
   website?: string;
   summary?: string;
@@ -77,26 +81,37 @@ export async function lookupVenue(
   // Taxis have no venue to find by position
   const canSearchNearby = Boolean(clues.near) && clues.serviceType !== 'taxi';
   if ((!query && !canSearchNearby) || !(await venueLookupAvailable())) return null;
-  try {
-    const res = await fetch('/api/venue', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        query,
-        latitude: clues.latitude,
-        longitude: clues.longitude,
-        near: clues.near,
-        serviceType: clues.serviceType,
-        lang: clues.lang,
-      }),
-    });
-    if (!res.ok) return null;
-    const info: VenueInfo = await res.json();
-    return info.found ? info : null;
-  } catch {
-    return null;
+  const body = JSON.stringify({
+    query,
+    // The parts too, for OpenStreetMap's stricter search (name + city usually finds it best)
+    clues: { name: isRealVenueName(clues.name) ? clues.name : undefined, address: clues.address, phone: clues.phone, city: clues.city },
+    latitude: clues.latitude,
+    longitude: clues.longitude,
+    near: clues.near,
+    serviceType: clues.serviceType,
+    lang: clues.lang,
+  });
+  // Same receipt again (re-render, language switch back): answer from memory instead of a new lookup
+  if (!lookups.has(body)) {
+    lookups.set(
+      body,
+      fetch('/api/venue', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body })
+        .then(async (res) => {
+          if (!res.ok) return null;
+          const info: VenueInfo = await res.json();
+          return info.found ? info : null;
+        })
+        .catch(() => {
+          lookups.delete(body); // network hiccup: allow a retry
+          return null;
+        })
+    );
   }
+  return lookups.get(body)!;
 }
+
+// Venue lookups already made this session, by request
+const lookups = new Map<string, Promise<VenueInfo | null>>();
 
 /**
  * A Google Maps search for the venue, used when the exact place isn't known (no Maps key, or not found).
